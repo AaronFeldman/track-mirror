@@ -148,6 +148,14 @@
     }
 
     log("Friend Activity discovery adapter loaded");
+    try {
+      if (typeof Spicetify.showNotification === "function") {
+        Spicetify.showNotification("Track Mirror loaded");
+      }
+    } catch (error) {
+      console.warn(PREFIX, "Could not show load notification", error);
+    }
+
     scan();
 
     const observer = new MutationObserver(scheduleScan);
