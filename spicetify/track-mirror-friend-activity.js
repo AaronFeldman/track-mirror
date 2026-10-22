@@ -1,8 +1,10 @@
 (function trackMirrorFriendActivity() {
   const PREFIX = "[Track Mirror]";
   const STORAGE_KEY = "track-mirror:last-observations";
+  const STATUS_ID = "track-mirror-status-badge";
   const SCAN_DEBOUNCE_MS = 200;
   let scanTimer = null;
+  let lastCount = 0;
 
   function log(...args) {
     console.log(PREFIX, ...args);
@@ -113,6 +115,36 @@
     });
   }
 
+  function ensureStatusBadge() {
+    let badge = document.getElementById(STATUS_ID);
+    if (badge) return badge;
+
+    badge = document.createElement("div");
+    badge.id = STATUS_ID;
+    badge.setAttribute("role", "status");
+    badge.style.position = "fixed";
+    badge.style.right = "16px";
+    badge.style.bottom = "88px";
+    badge.style.zIndex = "999999";
+    badge.style.padding = "8px 12px";
+    badge.style.borderRadius = "999px";
+    badge.style.background = "rgba(20,20,20,0.92)";
+    badge.style.color = "white";
+    badge.style.fontSize = "12px";
+    badge.style.fontWeight = "600";
+    badge.style.boxShadow = "0 2px 10px rgba(0,0,0,0.35)";
+    badge.style.pointerEvents = "none";
+    badge.textContent = "Track Mirror: loaded • Friend observations: 0";
+    document.body.appendChild(badge);
+    return badge;
+  }
+
+  function updateStatusBadge(count) {
+    lastCount = count;
+    const badge = ensureStatusBadge();
+    badge.textContent = `Track Mirror: loaded • Friend observations: ${count}`;
+  }
+
   function persist(observations) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
@@ -132,6 +164,7 @@
   function scan() {
     const observations = dedupe(candidateRows().map(parseRow).filter(Boolean));
     persist(observations);
+    updateStatusBadge(observations.length);
     emit(observations);
     return observations;
   }
@@ -148,17 +181,16 @@
     }
 
     log("Friend Activity discovery adapter loaded");
-    try {
-      if (typeof Spicetify.showNotification === "function") {
-        Spicetify.showNotification("Track Mirror loaded");
-      }
-    } catch (error) {
-      console.warn(PREFIX, "Could not show load notification", error);
-    }
-
+    ensureStatusBadge();
     scan();
 
-    const observer = new MutationObserver(scheduleScan);
+    const observer = new MutationObserver(() => {
+      if (!document.getElementById(STATUS_ID)) {
+        ensureStatusBadge();
+        updateStatusBadge(lastCount);
+      }
+      scheduleScan();
+    });
     observer.observe(document.body, {
       childList: true,
       subtree: true,
