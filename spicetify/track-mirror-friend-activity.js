@@ -156,6 +156,31 @@
     });
   }
 
+  function rightSideDiagnostic() {
+    const found = [];
+    const seen = new Set();
+    const xValues = [0.78, 0.86, 0.94].map((p) => Math.floor(window.innerWidth * p));
+    const yValues = [0.12, 0.22, 0.34, 0.48, 0.62, 0.76].map((p) => Math.floor(window.innerHeight * p));
+
+    for (const x of xValues) {
+      for (const y of yValues) {
+        for (const node of document.elementsFromPoint(x, y)) {
+          if (!(node instanceof Element)) continue;
+          if (node.id === STATUS_ID || node.closest(`#${STATUS_ID}`)) continue;
+          const text = normalizeText(node.innerText || node.textContent);
+          if (!text || text.length > 180 || seen.has(text)) continue;
+          seen.add(text);
+          found.push(text);
+          if (found.length >= 4) break;
+        }
+        if (found.length >= 4) break;
+      }
+      if (found.length >= 4) break;
+    }
+
+    return found.join(" | ").slice(0, 220) || "no readable right-side text";
+  }
+
   function ensureStatusBadge() {
     let badge = document.getElementById(STATUS_ID);
     if (badge) return badge;
@@ -168,13 +193,15 @@
     badge.style.bottom = "88px";
     badge.style.zIndex = "999999";
     badge.style.padding = "8px 12px";
-    badge.style.borderRadius = "999px";
+    badge.style.borderRadius = "12px";
     badge.style.background = "rgba(20,20,20,0.92)";
     badge.style.color = "white";
     badge.style.fontSize = "12px";
     badge.style.fontWeight = "600";
     badge.style.boxShadow = "0 2px 10px rgba(0,0,0,0.35)";
     badge.style.pointerEvents = "none";
+    badge.style.maxWidth = "520px";
+    badge.style.whiteSpace = "normal";
     document.body.appendChild(badge);
     return badge;
   }
@@ -183,8 +210,11 @@
     lastPanelFound = panelFound;
     lastCount = count;
     const badge = ensureStatusBadge();
-    const panelText = panelFound ? "panel found" : "panel not found";
-    badge.textContent = `Track Mirror: loaded • Friend Activity ${panelText} • observations: ${count}`;
+    if (panelFound) {
+      badge.textContent = `Track Mirror: loaded • Friend Activity panel found • observations: ${count}`;
+    } else {
+      badge.textContent = `Track Mirror: loaded • panel not found • right-side UI: ${rightSideDiagnostic()}`;
+    }
   }
 
   function persist(observations) {
