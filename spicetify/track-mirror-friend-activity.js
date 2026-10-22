@@ -85,9 +85,7 @@
     document.querySelectorAll("aside, section, [role='complementary'], h1, h2, h3, h4, button, [role='button']")
       .forEach((node) => {
         if (node.id === STATUS_ID || node.closest(`#${STATUS_ID}`)) return;
-        if (activityLabelMatches(node.textContent)) {
-          addAncestorRoots(roots, node, 9);
-        }
+        if (activityLabelMatches(node.textContent)) addAncestorRoots(roots, node, 9);
       });
 
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -97,28 +95,59 @@
       checked += 1;
       const parent = textNode.parentElement;
       if (!parent || parent.id === STATUS_ID || parent.closest(`#${STATUS_ID}`)) continue;
-      if (activityLabelMatches(textNode.nodeValue)) {
-        addAncestorRoots(roots, parent, 9);
-      }
+      if (activityLabelMatches(textNode.nodeValue)) addAncestorRoots(roots, parent, 9);
     }
 
     return Array.from(roots);
   }
 
+  function looksLikeActivityText(text) {
+    const value = normalizeText(text);
+    if (!value || value.length < 8 || value.length > 220) return false;
+    if (/invite others to your jam|start a jam|listening activity/i.test(value)) return false;
+    return /\b(?:\d+\s*(?:min|mins|minute|minutes|hr|hrs|hour|hours)|now)\b/i.test(value);
+  }
+
+  function textCandidateRows(roots) {
+    const matches = [];
+    for (const root of roots) {
+      root.querySelectorAll("div, li, [role='listitem'], button").forEach((node) => {
+        if (node.id === STATUS_ID || node.closest(`#${STATUS_ID}`)) return;
+        const text = normalizeText(node.innerText || node.textContent);
+        if (!looksLikeActivityText(text)) return;
+
+        const hasSmallerMatch = Array.from(node.children || []).some((child) => {
+          const childText = normalizeText(child.innerText || child.textContent);
+          return looksLikeActivityText(childText);
+        });
+        if (!hasSmallerMatch) matches.push(node);
+      });
+    }
+    return Array.from(new Set(matches));
+  }
+
   function candidateRows(roots = friendActivityRoots()) {
-    const rows = [];
+    const linkedRows = [];
     for (const root of roots) {
       root.querySelectorAll("div, li, [role='listitem']").forEach((node) => {
         if (node.id === STATUS_ID || node.closest(`#${STATUS_ID}`)) return;
         const links = collectLinks(node);
         const kinds = new Set(links.map((l) => l.kind));
         if ((kinds.has("user") || node.getAttribute("role") === "listitem") && kinds.has("track")) {
-          rows.push(node);
+          linkedRows.push(node);
         }
       });
     }
 
-    return Array.from(new Set(rows));
+    const uniqueLinked = Array.from(new Set(linkedRows));
+    return uniqueLinked.length ? uniqueLinked : textCandidateRows(roots);
+  }
+
+  function guessFriendName(rawText) {
+    const beforeTime = rawText.split(/\b(?:\d+\s*(?:min|mins|minute|minutes|hr|hrs|hour|hours)|now)\b/i)[0];
+    const name = normalizeText(beforeTime).replace(/[•·|]+$/g, "").trim();
+    if (!name || name.length > 60) return null;
+    return name;
   }
 
   function parseRow(row) {
@@ -129,21 +158,32 @@
     const artist = byKind("artist");
     const playlist = byKind("playlist");
     const album = byKind("album");
-    const rawText = normalizeText(row.textContent);
+    const rawText = normalizeText(row.innerText || row.textContent);
 
-    if (!track) return null;
+    if (track) {
+      return {
+        source: "spotify-listening-activity-dom-links",
+        observedAt: new Date().toISOString(),
+        friend: user ? { name: user.text || null, href: user.href } : null,
+        track: { name: track.text || null, href: track.href },
+        artist: artist ? { name: artist.text || null, href: artist.href } : null,
+        context: playlist
+          ? { type: "playlist", name: playlist.text || null, href: playlist.href }
+          : album
+            ? { type: "album", name: album.text || null, href: album.href }
+            : null,
+        rawText,
+      };
+    }
 
+    if (!looksLikeActivityText(rawText)) return null;
     return {
-      source: "spotify-friend-activity-dom",
+      source: "spotify-listening-activity-dom-text",
       observedAt: new Date().toISOString(),
-      friend: user ? { name: user.text || null, href: user.href } : null,
-      track: { name: track.text || null, href: track.href },
-      artist: artist ? { name: artist.text || null, href: artist.href } : null,
-      context: playlist
-        ? { type: "playlist", name: playlist.text || null, href: playlist.href }
-        : album
-          ? { type: "album", name: album.text || null, href: album.href }
-          : null,
+      friend: { name: guessFriendName(rawText), href: null },
+      track: null,
+      artist: null,
+      context: null,
       rawText,
     };
   }
@@ -163,31 +203,6 @@
       seen.add(key);
       return true;
     });
-  }
-
-  function rightSideDiagnostic() {
-    const found = [];
-    const seen = new Set();
-    const xValues = [0.78, 0.86, 0.94].map((p) => Math.floor(window.innerWidth * p));
-    const yValues = [0.12, 0.22, 0.34, 0.48, 0.62, 0.76].map((p) => Math.floor(window.innerHeight * p));
-
-    for (const x of xValues) {
-      for (const y of yValues) {
-        for (const node of document.elementsFromPoint(x, y)) {
-          if (!(node instanceof Element)) continue;
-          if (node.id === STATUS_ID || node.closest(`#${STATUS_ID}`)) continue;
-          const text = normalizeText(node.innerText || node.textContent);
-          if (!text || text.length > 180 || seen.has(text)) continue;
-          seen.add(text);
-          found.push(text);
-          if (found.length >= 4) break;
-        }
-        if (found.length >= 4) break;
-      }
-      if (found.length >= 4) break;
-    }
-
-    return found.join(" | ").slice(0, 220) || "no readable right-side text";
   }
 
   function ensureStatusBadge() {
@@ -215,15 +230,22 @@
     return badge;
   }
 
-  function updateStatusBadge(panelFound, count) {
+  function updateStatusBadge(panelFound, observations) {
     lastPanelFound = panelFound;
-    lastCount = count;
+    lastCount = observations.length;
     const badge = ensureStatusBadge();
-    if (panelFound) {
-      badge.textContent = `Track Mirror: loaded • Listening activity panel found • observations: ${count}`;
-    } else {
-      badge.textContent = `Track Mirror: loaded • panel not found • right-side UI: ${rightSideDiagnostic()}`;
+    if (!panelFound) {
+      badge.textContent = "Track Mirror: loaded • Listening activity panel not found";
+      return;
     }
+
+    const names = observations
+      .map((obs) => obs.friend?.name)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(", ");
+    const suffix = names ? ` • ${names}` : "";
+    badge.textContent = `Track Mirror: loaded • Listening activity panel found • activity rows: ${observations.length}${suffix}`;
   }
 
   function persist(observations) {
@@ -235,9 +257,7 @@
   }
 
   function emit(observations) {
-    const event = new CustomEvent("track-mirror:friend-activity", {
-      detail: observations,
-    });
+    const event = new CustomEvent("track-mirror:friend-activity", { detail: observations });
     window.dispatchEvent(event);
     log("Listening activity observations", observations);
   }
@@ -247,7 +267,7 @@
     const panelFound = roots.length > 0;
     const observations = dedupe(candidateRows(roots).map(parseRow).filter(Boolean));
     persist(observations);
-    updateStatusBadge(panelFound, observations.length);
+    updateStatusBadge(panelFound, observations);
     emit(observations);
     return observations;
   }
@@ -264,13 +284,13 @@
     }
 
     log("Listening activity discovery adapter loaded");
-    updateStatusBadge(false, 0);
+    updateStatusBadge(false, []);
     scan();
 
     const observer = new MutationObserver(() => {
       if (!document.getElementById(STATUS_ID)) {
         ensureStatusBadge();
-        updateStatusBadge(lastPanelFound, lastCount);
+        updateStatusBadge(lastPanelFound, Array(lastCount).fill({}));
       }
       scheduleScan();
     });
