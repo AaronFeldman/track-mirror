@@ -54,13 +54,24 @@
     }
   }
 
+  function activityLabelMatches(text) {
+    const value = normalizeText(text).toLowerCase();
+    return value.includes("friend activity") ||
+      value.includes("friends activity") ||
+      value.includes("listening activity");
+  }
+
   function friendActivityRoots() {
     const roots = new Set();
     const selectors = [
       '[data-testid*="friend" i]',
+      '[data-testid*="listening" i]',
       '[aria-label*="friend" i]',
+      '[aria-label*="listening" i]',
       '[title*="friend" i]',
+      '[title*="listening" i]',
       '[class*="friend" i]',
+      '[class*="listening" i]',
     ];
 
     for (const selector of selectors) {
@@ -74,8 +85,7 @@
     document.querySelectorAll("aside, section, [role='complementary'], h1, h2, h3, h4, button, [role='button']")
       .forEach((node) => {
         if (node.id === STATUS_ID || node.closest(`#${STATUS_ID}`)) return;
-        const text = normalizeText(node.textContent).toLowerCase();
-        if (text.includes("friend activity") || text.includes("friends activity")) {
+        if (activityLabelMatches(node.textContent)) {
           addAncestorRoots(roots, node, 9);
         }
       });
@@ -87,8 +97,7 @@
       checked += 1;
       const parent = textNode.parentElement;
       if (!parent || parent.id === STATUS_ID || parent.closest(`#${STATUS_ID}`)) continue;
-      const text = normalizeText(textNode.nodeValue).toLowerCase();
-      if (text === "friend activity" || text === "friends activity" || text.includes("friend activity")) {
+      if (activityLabelMatches(textNode.nodeValue)) {
         addAncestorRoots(roots, parent, 9);
       }
     }
@@ -211,7 +220,7 @@
     lastCount = count;
     const badge = ensureStatusBadge();
     if (panelFound) {
-      badge.textContent = `Track Mirror: loaded • Friend Activity panel found • observations: ${count}`;
+      badge.textContent = `Track Mirror: loaded • Listening activity panel found • observations: ${count}`;
     } else {
       badge.textContent = `Track Mirror: loaded • panel not found • right-side UI: ${rightSideDiagnostic()}`;
     }
@@ -230,7 +239,7 @@
       detail: observations,
     });
     window.dispatchEvent(event);
-    log("Friend Activity observations", observations);
+    log("Listening activity observations", observations);
   }
 
   function scan() {
@@ -254,7 +263,7 @@
       return;
     }
 
-    log("Friend Activity discovery adapter loaded");
+    log("Listening activity discovery adapter loaded");
     updateStatusBadge(false, 0);
     scan();
 
