@@ -5,6 +5,7 @@
   const SCAN_DEBOUNCE_MS = 200;
   let scanTimer = null;
   let lastCount = 0;
+  let lastPanelFound = false;
 
   function log(...args) {
     console.log(PREFIX, ...args);
@@ -44,19 +45,29 @@
       .filter((item) => item.kind);
   }
 
-  function candidateRows() {
+  function friendActivityRoots() {
+    const roots = new Set();
     const selectors = [
       '[data-testid*="friend"]',
       '[aria-label*="Friend"]',
       '[aria-label*="friend"]',
-      'aside',
     ];
 
-    const roots = new Set();
     for (const selector of selectors) {
       document.querySelectorAll(selector).forEach((node) => roots.add(node));
     }
 
+    document.querySelectorAll("aside").forEach((node) => {
+      const text = normalizeText(node.textContent).toLowerCase();
+      if (text.includes("friend activity") || text.includes("friends activity")) {
+        roots.add(node);
+      }
+    });
+
+    return Array.from(roots);
+  }
+
+  function candidateRows(roots = friendActivityRoots()) {
     const rows = [];
     for (const root of roots) {
       root.querySelectorAll("div, li").forEach((node) => {
@@ -134,15 +145,16 @@
     badge.style.fontWeight = "600";
     badge.style.boxShadow = "0 2px 10px rgba(0,0,0,0.35)";
     badge.style.pointerEvents = "none";
-    badge.textContent = "Track Mirror: loaded • Friend observations: 0";
     document.body.appendChild(badge);
     return badge;
   }
 
-  function updateStatusBadge(count) {
+  function updateStatusBadge(panelFound, count) {
+    lastPanelFound = panelFound;
     lastCount = count;
     const badge = ensureStatusBadge();
-    badge.textContent = `Track Mirror: loaded • Friend observations: ${count}`;
+    const panelText = panelFound ? "panel found" : "panel not found";
+    badge.textContent = `Track Mirror: loaded • Friend Activity ${panelText} • observations: ${count}`;
   }
 
   function persist(observations) {
@@ -162,9 +174,11 @@
   }
 
   function scan() {
-    const observations = dedupe(candidateRows().map(parseRow).filter(Boolean));
+    const roots = friendActivityRoots();
+    const panelFound = roots.length > 0;
+    const observations = dedupe(candidateRows(roots).map(parseRow).filter(Boolean));
     persist(observations);
-    updateStatusBadge(observations.length);
+    updateStatusBadge(panelFound, observations.length);
     emit(observations);
     return observations;
   }
@@ -181,13 +195,13 @@
     }
 
     log("Friend Activity discovery adapter loaded");
-    ensureStatusBadge();
+    updateStatusBadge(false, 0);
     scan();
 
     const observer = new MutationObserver(() => {
       if (!document.getElementById(STATUS_ID)) {
         ensureStatusBadge();
-        updateStatusBadge(lastCount);
+        updateStatusBadge(lastPanelFound, lastCount);
       }
       scheduleScan();
     });
