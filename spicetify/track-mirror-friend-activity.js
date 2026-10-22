@@ -45,24 +45,53 @@
       .filter((item) => item.kind);
   }
 
+  function addAncestorRoots(roots, node, levels = 7) {
+    let current = node instanceof Element ? node : node.parentElement;
+    for (let i = 0; current && i < levels; i += 1, current = current.parentElement) {
+      if (current.id !== STATUS_ID && current !== document.body && current !== document.documentElement) {
+        roots.add(current);
+      }
+    }
+  }
+
   function friendActivityRoots() {
     const roots = new Set();
     const selectors = [
-      '[data-testid*="friend"]',
-      '[aria-label*="Friend"]',
-      '[aria-label*="friend"]',
+      '[data-testid*="friend" i]',
+      '[aria-label*="friend" i]',
+      '[title*="friend" i]',
+      '[class*="friend" i]',
     ];
 
     for (const selector of selectors) {
-      document.querySelectorAll(selector).forEach((node) => roots.add(node));
+      try {
+        document.querySelectorAll(selector).forEach((node) => addAncestorRoots(roots, node));
+      } catch (error) {
+        console.warn(PREFIX, "Selector failed", selector, error);
+      }
     }
 
-    document.querySelectorAll("aside").forEach((node) => {
-      const text = normalizeText(node.textContent).toLowerCase();
-      if (text.includes("friend activity") || text.includes("friends activity")) {
-        roots.add(node);
+    document.querySelectorAll("aside, section, [role='complementary'], h1, h2, h3, h4, button, [role='button']")
+      .forEach((node) => {
+        if (node.id === STATUS_ID || node.closest(`#${STATUS_ID}`)) return;
+        const text = normalizeText(node.textContent).toLowerCase();
+        if (text.includes("friend activity") || text.includes("friends activity")) {
+          addAncestorRoots(roots, node, 9);
+        }
+      });
+
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let textNode;
+    let checked = 0;
+    while ((textNode = walker.nextNode()) && checked < 10000) {
+      checked += 1;
+      const parent = textNode.parentElement;
+      if (!parent || parent.id === STATUS_ID || parent.closest(`#${STATUS_ID}`)) continue;
+      const text = normalizeText(textNode.nodeValue).toLowerCase();
+      if (text === "friend activity" || text === "friends activity" || text.includes("friend activity")) {
+        addAncestorRoots(roots, parent, 9);
       }
-    });
+    }
 
     return Array.from(roots);
   }
@@ -70,7 +99,8 @@
   function candidateRows(roots = friendActivityRoots()) {
     const rows = [];
     for (const root of roots) {
-      root.querySelectorAll("div, li").forEach((node) => {
+      root.querySelectorAll("div, li, [role='listitem']").forEach((node) => {
+        if (node.id === STATUS_ID || node.closest(`#${STATUS_ID}`)) return;
         const links = collectLinks(node);
         const kinds = new Set(links.map((l) => l.kind));
         if ((kinds.has("user") || node.getAttribute("role") === "listitem") && kinds.has("track")) {
