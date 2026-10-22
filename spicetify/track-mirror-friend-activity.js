@@ -189,20 +189,24 @@
   }
 
   function dedupe(observations) {
-    const seen = new Set();
-    return observations.filter((obs) => {
-      const key = JSON.stringify([
-        obs.friend?.href,
-        obs.friend?.name,
-        obs.track?.href,
-        obs.track?.name,
-        obs.artist?.href,
-        obs.rawText,
-      ]);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    const byKey = new Map();
+
+    for (const obs of observations) {
+      const friendName = normalizeText(obs.friend?.name || "").toLowerCase();
+      const linkedKey = obs.track?.href || obs.friend?.href;
+      const key = linkedKey
+        ? `linked:${linkedKey}`
+        : friendName
+          ? `friend:${friendName}`
+          : `raw:${obs.rawText}`;
+
+      const existing = byKey.get(key);
+      if (!existing || (obs.rawText || "").length < (existing.rawText || "").length) {
+        byKey.set(key, obs);
+      }
+    }
+
+    return Array.from(byKey.values());
   }
 
   function ensureStatusBadge() {
@@ -239,13 +243,11 @@
       return;
     }
 
-    const names = observations
-      .map((obs) => obs.friend?.name)
-      .filter(Boolean)
-      .slice(0, 3)
-      .join(", ");
+    const names = Array.from(new Set(
+      observations.map((obs) => obs.friend?.name).filter(Boolean)
+    )).slice(0, 4).join(", ");
     const suffix = names ? ` • ${names}` : "";
-    badge.textContent = `Track Mirror: loaded • Listening activity panel found • activity rows: ${observations.length}${suffix}`;
+    badge.textContent = `Track Mirror: loaded • Listening activity panel found • friends: ${observations.length}${suffix}`;
   }
 
   function persist(observations) {
