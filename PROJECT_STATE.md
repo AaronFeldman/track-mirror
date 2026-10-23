@@ -11,10 +11,11 @@ Track Mirror is a Spotify companion application that mirrors track identity and 
 - Follow a selected friend's listening activity closely enough that the follower's own Spotify client can play the corresponding tracks.
 - Prefer the term **mirroring** rather than rebroadcasting.
 - Move away from OCR/screen scraping where practical.
-- Use a Spicetify extension as the current discovery/integration path for Spotify desktop Friend Activity.
+- Use a Spicetify extension as the current discovery/integration path for Spotify desktop Listening Activity.
 - Keep implementation compatible with Spotify platform rules and third-party licenses.
 - Distribute Track Mirror and its patching/integration logic, not patched Spotify binaries.
 - Treat complete rollback/recovery as a core product requirement.
+- Keep the core architecture portable across Linux, Windows 11, macOS, Android, and Apple mobile platforms; treat the current Linux/Spicetify implementation as a platform-specific adapter/test bed.
 
 ## Existing proof of concept
 
@@ -22,15 +23,43 @@ A local Linux script, `~/.local/bin/follow-amanda`, was used to watch Spotify Fr
 
 ## Current implementation state
 
-A first non-OCR Friend Activity adapter exists at:
+The current non-OCR desktop path is working end to end.
+
+### Listening Activity discovery
 
 `spicetify/track-mirror-friend-activity.js`
 
-It runs inside Spotify through Spicetify, watches the rendered Friend Activity DOM, extracts friend/track/artist/context links where available, emits `track-mirror:friend-activity` events, and stores the latest observations in local storage. This is a discovery adapter: it deliberately avoids assuming an undocumented stable Spotify Friend Activity endpoint.
+This extension runs inside Spotify through Spicetify, detects the rendered **Listening activity** panel, identifies visible friends, extracts visible track/artist text, emits `track-mirror:friend-activity` events, and stores the latest observations in local storage.
 
-Testing can proceed even while no friend is actively listening. An empty observation set is valid; live activity will be used later to refine selectors and confirm the rendered structure in the current Spotify build.
+### Exact track-URI discovery
 
-A first safety-focused installer/rollback layer also exists:
+`spicetify/track-mirror-dom-uri-probe.js`
+
+This extension probes only the local DOM around already identified Listening Activity rows and recovers exact embedded Spotify track URIs (`spotify:track:...`). This avoids OCR and avoids repeated Spotify catalog-search requests.
+
+### Playback mirroring
+
+`spicetify/track-mirror-playback.js`
+
+This extension provides a user-controlled `Mirror Amanda` ON/OFF control and uses the exact discovered Spotify URI to instruct the follower's own Spotify client to play a newly detected track. It is armed manually and treats the currently displayed URI as a baseline so enabling mirroring does not immediately play a potentially stale activity entry.
+
+### First successful live end-to-end test
+
+On October 22, 2026, the repository owner confirmed the first successful live mirroring event:
+
+1. Amanda's Listening Activity changed to a new track.
+2. Track Mirror detected the changed activity row.
+3. Track Mirror recovered the exact embedded Spotify track URI from the local client DOM.
+4. The armed playback layer detected the URI change.
+5. The user's own Spotify client switched to the mirrored track successfully.
+
+This validated the core product behavior without copying, proxying, or rebroadcasting audio.
+
+A Spotify catalog-search resolver was also explored but encountered HTTP 429 rate-limit responses. The successful current path therefore prefers direct embedded track-URI discovery from the local client DOM and does not require catalog search for normal mirroring.
+
+### Installer and rollback
+
+A safety-focused installer/rollback layer exists:
 
 - `scripts/install-track-mirror.sh`
 - `scripts/restore-spotify.sh`
@@ -49,15 +78,19 @@ The installer performs preflight checks, records a timestamped Track Mirror reco
 7. Do not distribute patched Spotify binaries; patch the user's own installation locally.
 8. Every patching/modification step must have a corresponding rollback path.
 9. Keep independent Track Mirror recovery state in addition to Spicetify's own backup/restore mechanism.
+10. Prefer using exact track identifiers already present in the local Spotify client state over repeated catalog search.
+11. Keep platform-specific discovery/playback adapters separate from portable core mirroring concepts.
 
 ## Open technical questions
 
-- Whether the current Friend Activity DOM provides stable enough identifiers/links across Spotify updates.
+- Whether the current Listening Activity DOM remains stable across Spotify updates.
 - Whether a cleaner internal client API can be discovered and used without coupling the whole application to unstable internals.
 - Fallback behavior when the exact track is unavailable in the follower's market/account.
 - Timing, seek-position, pause/resume, and drift-correction behavior.
+- How to distinguish current activity from stale historical activity robustly.
+- User-selectable target friend UI rather than a hard-coded Amanda target.
 - Authentication/consent model for following another listener.
-- Cross-platform support beyond Linux.
+- Cross-platform implementation paths beyond Linux desktop.
 - Exact health-check and version-gating policy before the installer is suitable for general users.
 
 ## Legal / platform review status
@@ -70,4 +103,4 @@ Preliminary review only. The project is intentionally designed around metadata/s
 
 ## Next implementation milestone
 
-Set up the user's parallel patchable Spotify + Spicetify installation while leaving the Snap Spotify untouched. Run the installer in that isolated environment, verify backup/restore behavior before relying on the patch, confirm the Friend Activity adapter loads while activity is idle, and later capture the first live friend-activity observation. Before general distribution, add dry-run, process detection, checksums, version gates, a post-install health check with automatic rollback, and automated recovery tests.
+Replace the hard-coded Amanda target with a generic selectable-friend control while preserving the successful URI-based mirroring path. Then harden stale-activity detection, startup behavior, event/debounce logic, and version compatibility before broadening to Windows/macOS and exploring mobile adapters.
