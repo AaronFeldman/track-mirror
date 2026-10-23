@@ -21,7 +21,8 @@ The following are repository-owner product/development decisions, not merely imp
 - prioritize the Android MediaSession route as the current commercial-safe playback experiment after review of the alternatives;
 - use an Android emulator first for repeatable day-to-day development and MediaSession experimentation;
 - follow emulator success with physical-device testing before treating Spotify/MediaSession behavior as proven for real-world use;
-- keep the existing App Remote path intact while this experiment is evaluated.
+- keep the existing App Remote path intact while this experiment is evaluated;
+- on the current CachyOS/COSMIC development machine, run the Android emulator headlessly and use ADB/scrcpy for viewing and control because moving the native emulator window repeatedly froze desktop pointer/window interaction; this is the preferred development workflow unless the native-window issue is later shown to be resolved.
 
 AI assistance may provide implementation code, testing procedures, documentation, and analysis, but these product and validation choices are attributed to the repository owner.
 
@@ -64,6 +65,14 @@ Validated environment on 2026-10-23:
 - Linux KVM device present and accessible, so hardware acceleration is available.
 
 This establishes a repeatable Google Play-enabled Android test environment for the MediaSession spike. Emulator success will still require later physical-device confirmation before the behavior is treated as proven in real-world use.
+
+## Host-window workaround
+
+The Android emulator's native graphical window repeatedly caused the CachyOS/COSMIC desktop to freeze pointer/window interaction when the emulator window was dragged. The same behavior persisted when the emulator UI was forced through X11/XWayland, so the simple Wayland-vs-X11 hypothesis was not sufficient.
+
+The repository owner approved a safer development workflow: keep the Android virtual device itself, but run it with no native emulator window and view/control the guest through `scrcpy` over ADB. This preserves the Android 16 / API 36 / Google Play test environment while removing the host-side emulator window that triggered the freezes. Hardware/KVM acceleration remains available.
+
+This is a development-host workaround only; it does not change the product architecture or the requirement for later physical-device validation.
 
 ## Validation sequence
 
