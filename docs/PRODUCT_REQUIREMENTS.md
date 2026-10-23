@@ -2,6 +2,8 @@
 
 These requirements apply across Linux, Windows, macOS, Android, and iOS/iPadOS unless the repository owner expressly changes them.
 
+The approved cross-platform visual/interaction reference is documented in `docs/UI_REFERENCE.md` and should be carried forward wherever platform conventions permit.
+
 ## Non-obstructive controls
 
 Track Mirror controls must not permanently obscure Spotify controls, Spotify content, or Track Mirror content.
@@ -32,20 +34,24 @@ This requirement exists so the user can immediately recognize what the control b
 
 ## Self-dismissing quick controls
 
-Track Mirror quick-control dialogs, popovers, and sheets should not require the user to press an **X** merely to finish a normal change.
+This is a mandatory cross-platform interaction requirement.
 
-Changes should take effect immediately, and the quick-control surface should dismiss itself after the user's final action whenever the platform allows this cleanly.
+Track Mirror quick-control dialogs, popovers, and sheets must not require the user to press an **X**, Close, Save, Apply, or equivalent merely to finish an ordinary source-selection or mirroring-state change.
+
+Changes take effect immediately, and the quick-control surface should dismiss itself after the user's completed action whenever the platform allows this cleanly.
 
 The interface must make a strong distinction between **closing the controls** and **turning Track Mirror off**:
 
 - closing or dismissing a dialog does not disable mirroring;
-- mirroring changes state only through the explicit Mirroring ON/OFF control;
-- selecting a new friend/source takes effect immediately;
-- when mirroring is already on, choosing a new friend/source may complete the interaction and dismiss the quick-control surface;
-- pressing the explicit Mirroring ON/OFF control completes the interaction and should dismiss the quick-control surface;
-- a visible close control may remain as a fallback, but it must not be required in the ordinary workflow.
+- mirroring changes state only through the explicit **Mirroring ON / Mirroring OFF** control;
+- selecting a new friend/source takes effect immediately and completes the quick-control interaction;
+- selecting a friend/source should therefore dismiss the quick-control surface automatically after a brief confirmation interval;
+- pressing the explicit **Mirroring ON / Mirroring OFF** control completes the interaction and should dismiss the quick-control surface automatically;
+- a short delay may be used so the user can perceive the resulting state before dismissal;
+- a visible close control may remain as a fallback, but it must not be required in the ordinary workflow;
+- no user should need to infer whether an X means “close this panel” or “turn Track Mirror off.”
 
-This behavior is an accessibility/usability requirement. Users should not have to infer whether an **X** means “close this panel” or “turn Track Mirror off.”
+This is an accessibility/usability requirement and applies to phone, tablet, and desktop implementations.
 
 ## Legacy Linux Spicetify proof of concept
 
@@ -58,7 +64,8 @@ The proof-of-concept implementation remains valuable as:
 - evidence that the Track Mirror product concept works end to end;
 - a reference for friend/source discovery and exact Spotify track-URI recovery;
 - a temporary daily-use Linux implementation;
-- a fallback/reference implementation during development of the replacement Linux build.
+- a fallback/reference implementation during development of the replacement Linux build;
+- the current approved reference for the compact Track Mirror control interaction described in `docs/UI_REFERENCE.md`.
 
 The new Linux implementation should use the same Rust-core / replaceable-adapter architecture as the other supported platforms rather than inheriting Spicetify as a permanent architectural dependency.
 
@@ -74,4 +81,5 @@ Across all builds:
 - keep source selection, duplicate suppression, ordering, and other mirroring policy centralized in the Rust core where applicable;
 - keep platform-specific source/playback mechanics behind adapters;
 - preserve rollback/recovery paths for integrations that modify or wrap local Spotify behavior;
-- prefer exact Spotify track identifiers already available from source state over repeated catalog search when practical.
+- prefer exact Spotify track identifiers already available from source state over repeated catalog search when practical;
+- follow the approved Track Mirror UI reference and self-dismissing quick-control behavior wherever platform conventions allow.
