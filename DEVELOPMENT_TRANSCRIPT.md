@@ -114,10 +114,24 @@ The code uses current documented Spicetify extension patterns: `Spicetify.Topbar
 
 Repository integration does not by itself update the already-installed local Spicetify extension. The local proof-of-concept installation must still be refreshed from the repository and `spicetify apply` run before the new control layout is visible in Spotify.
 
+## 2026-10-23 — Legacy proof-of-concept packaging completed
+
+The installer and restore scripts were expanded so the legacy proof of concept is managed as one coherent three-extension unit rather than only installing the original friend-activity extension.
+
+The managed extensions are:
+
+- `track-mirror-friend-activity.js`;
+- `track-mirror-dom-uri-probe.js`;
+- `track-mirror-playback.js`.
+
+The installer now validates all three source files, snapshots any pre-existing copies and the Spicetify configuration, installs and enables all three, and restores the previous files/configuration automatically if `spicetify apply` fails. The restore script likewise restores or removes all three and restores the exact pre-install Spicetify configuration when the snapshot exists.
+
+Both shell scripts were syntax-checked with `bash -n` before being committed. Current Spicetify documentation confirms that `spicetify config extensions <filename>` appends extensions rather than replacing the user's existing extension list.
+
 ## Current handoff point
 
 - The legacy Spicetify build is the working proof of concept / temporary usable Linux version.
-- The proof-of-concept UI is ready in the repository with non-obstructive top-bar/modal controls.
+- Its non-obstructive top-bar/modal UI and complete three-extension installer/restore path are now on `main`.
 - PR #1 (`desktop-native-playback`) remains separate unmerged Rust/Tauri desktop work.
 - Android/iOS Rust-to-native Spotify bridge work remains part of the shared next-generation architecture.
 - The new Linux Rust/Tauri build is to be developed in parallel and eventually replace the proof of concept only after validation and repository-owner approval.
