@@ -64,7 +64,8 @@ impl Display for MirrorEventError {
 
 impl Error for MirrorEventError {}
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]\#[serde(tag = "type", rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum MirrorAction {
     Ignored { reason: String },
     Baseline { track_uri: String },
