@@ -4,7 +4,7 @@ Date adopted: 2026-10-23
 
 This document records the repository owner's approved reference interaction pattern for Track Mirror controls. It applies to Linux, Windows, macOS, Android, and iOS/iPadOS wherever the platform permits an equivalent implementation.
 
-The approved visual reference came from the working Linux Spicetify proof of concept shown and approved in the Track Mirror project conversation on October 23, 2026. The executable legacy reference is `spicetify/track-mirror-playback.js`.
+The approved visual reference came from the working Linux Spicetify proof of concept shown, tested, corrected, and approved in the Track Mirror project conversation on October 23, 2026. The executable legacy reference is `spicetify/track-mirror-playback.js`.
 
 ## Reference pattern
 
@@ -12,12 +12,18 @@ The approved visual reference came from the working Linux Spicetify proof of con
 
 The normal, unclicked control must be visible in ordinary application chrome rather than floating over content.
 
-It should show:
+The canonical reference control is a **single clickable state glyph + Track Mirror label**:
 
-- a compact Track Mirror icon/action glyph where appropriate; and
-- the visible text **Track Mirror** without requiring hover, long-press, or a prior click.
+- **▷ Track Mirror** means mirroring is OFF / ready but not active.
+- **⇄ Track Mirror** means mirroring is ON / actively mirroring the selected source.
 
-The primary Track Mirror control must not be icon-only when the platform provides room for text.
+The glyph and text are one control and one click/tap target. The state symbol must not be visually detached from a separate hidden or adjacent clickable element.
+
+The state glyph should be substantially more visually prominent than ordinary body text so the control announces itself as interactive. In the tested Linux Spicetify reference, the state glyph is approximately 26 px while the `Track Mirror` label remains ordinary compact control text. Other platforms may scale this proportionally to native density and accessibility settings rather than copying the pixel size mechanically.
+
+The primary Track Mirror control must not be icon-only when the platform provides room for text. The words **Track Mirror** remain visible in the normal, unclicked state.
+
+The glyph is a redundant status cue, not the sole way of understanding state. Explicit **Mirroring ON / Mirroring OFF** wording remains inside the quick-control surface.
 
 ### Quick-control surface
 
@@ -55,24 +61,28 @@ Do not use permanent floating overlays for normal user interaction. Diagnostic i
 
 ## Platform adaptation
 
-The visual structure should be carried forward rather than copied mechanically.
+The visual structure and state meaning should be carried forward rather than copied mechanically.
 
 ### Linux / Windows / macOS
 
 Preferred pattern:
 
-- toolbar/top-bar/menu-bar/application-chrome entry showing **Track Mirror**;
+- toolbar/top-bar/menu-bar/application-chrome entry showing the state glyph plus **Track Mirror** as one clickable control;
+- **▷** communicates OFF and **⇄** communicates ON when the platform/font renders those glyphs clearly;
+- the state glyph is deliberately prominent enough to read as part of an interactive control;
 - click opens a compact popover/modal;
 - friend/source selection and Mirroring ON/OFF live in that quick-control surface;
 - completed interactions auto-dismiss the surface.
 
-A system tray/status icon may be icon-only if the OS surface requires it, but the ordinary Track Mirror application/control surface must still expose the product name visibly.
+A system tray/status icon may be icon-only if the OS surface requires it, but the ordinary Track Mirror application/control surface must still expose the product name visibly and must provide an equivalent ON/OFF state cue.
 
 ### Android
 
 Preferred pattern:
 
-- app bar/header visibly identifies **Track Mirror**;
+- app bar/header or primary quick-access surface visibly identifies **Track Mirror**;
+- where a compact persistent control is shown, it should use the same OFF/ON meaning as **▷ Track Mirror** / **⇄ Track Mirror**, or the closest unambiguous native equivalent;
+- the glyph/icon and label form one tap target rather than adjacent unrelated elements;
 - quick control may use a bottom sheet, dialog, or compact screen appropriate to Android conventions;
 - source selection and Mirroring ON/OFF take effect immediately;
 - completed interactions close the quick-control surface automatically.
@@ -81,7 +91,9 @@ Preferred pattern:
 
 Preferred pattern:
 
-- navigation/app header visibly identifies **Track Mirror**;
+- navigation/app header or primary quick-access surface visibly identifies **Track Mirror**;
+- where a compact persistent control is shown, it should use the same OFF/ON meaning as **▷ Track Mirror** / **⇄ Track Mirror**, or the closest unambiguous Apple-platform equivalent;
+- the glyph/icon and label form one tap target rather than adjacent unrelated elements;
 - quick control may use a sheet, popover, or compact view appropriate to Apple platform conventions;
 - source selection and Mirroring ON/OFF take effect immediately;
 - completed interactions dismiss the quick-control surface automatically.
@@ -93,7 +105,10 @@ The reference interaction is intentionally optimized for users who may not infer
 Required principles:
 
 - visible product identity rather than icon-only identification;
-- large, explicit ON/OFF wording rather than ambiguous symbolic state;
+- redundant state communication: prominent state glyph plus explicit ON/OFF wording in the quick controls;
+- the visible glyph and label must belong to the actual clickable/tappable control;
+- state symbols must be large enough to read as intentional interactive UI, not tiny decoration;
+- large, explicit ON/OFF wording rather than ambiguous symbolic state alone;
 - immediate action feedback;
 - no unnecessary Save/Apply/Close step after a completed change sequence;
 - no reliance on an X to complete the ordinary workflow;
@@ -106,7 +121,10 @@ Required principles:
 
 The legacy Spicetify proof of concept currently embodies the reference pattern most completely:
 
-- visible play glyph plus **Track Mirror** in Spotify's top bar;
+- **▷ Track Mirror** when mirroring is OFF;
+- **⇄ Track Mirror** when mirroring is ON;
+- an approximately 26 px state glyph paired with compact `Track Mirror` text;
+- glyph and text contained inside the actual clickable top-bar button rather than displayed beside a hidden click target;
 - compact Track Mirror modal;
 - friend selector;
 - prominent Mirroring ON/OFF control;
@@ -115,4 +133,4 @@ The legacy Spicetify proof of concept currently embodies the reference pattern m
 - immediate application of changes;
 - automatic dismissal after a completed quick-control interaction.
 
-Future Track Mirror UI work should start from this reference unless a platform-native convention provides a clearly better implementation of the same usability requirements.
+Future Track Mirror UI work should start from this reference. A platform-native equivalent may replace the exact Unicode glyphs or measurements only when it preserves the same state meaning, obvious click/tap affordance, visible Track Mirror identity, and accessibility goals.
