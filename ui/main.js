@@ -3,6 +3,8 @@ const invoke = window.__TAURI__.core.invoke;
 const spotifyClientIdInput = document.querySelector('#spotify-client-id');
 const spotifyRedirectUriInput = document.querySelector('#spotify-redirect-uri');
 const spotifyStatusOutput = document.querySelector('#spotify-status');
+const mediaSessionTrackUriInput = document.querySelector('#media-session-track-uri');
+const mediaSessionOutput = document.querySelector('#media-session-output');
 const listenerInput = document.querySelector('#listener');
 const trackUriInput = document.querySelector('#track-uri');
 const playingInput = document.querySelector('#is-playing');
@@ -12,6 +14,7 @@ const actionOutput = document.querySelector('#action');
 let sequence = 1;
 
 spotifyClientIdInput.value = localStorage.getItem('track-mirror.spotify-client-id') || '';
+mediaSessionTrackUriInput.value = localStorage.getItem('track-mirror.mediasession-track-uri') || '';
 
 function show(output, value) {
   output.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
@@ -57,6 +60,46 @@ document.querySelector('#disconnect-spotify').addEventListener('click', async ()
     show(spotifyStatusOutput, await invoke('disconnect_spotify'));
   } catch (error) {
     show(spotifyStatusOutput, String(error));
+  }
+});
+
+document.querySelector('#media-session-access').addEventListener('click', async () => {
+  try {
+    show(mediaSessionOutput, await invoke('android_open_media_control_access'));
+  } catch (error) {
+    show(mediaSessionOutput, String(error));
+  }
+});
+
+document.querySelector('#media-session-status').addEventListener('click', async () => {
+  try {
+    show(mediaSessionOutput, await invoke('android_media_session_status'));
+  } catch (error) {
+    show(mediaSessionOutput, String(error));
+  }
+});
+
+document.querySelector('#media-session-play').addEventListener('click', async () => {
+  const trackUri = mediaSessionTrackUriInput.value.trim();
+  if (!trackUri.startsWith('spotify:track:')) {
+    show(mediaSessionOutput, 'Paste an exact spotify:track: URI first.');
+    return;
+  }
+
+  localStorage.setItem('track-mirror.mediasession-track-uri', trackUri);
+
+  try {
+    show(mediaSessionOutput, await invoke('android_play_track_via_media_session', { trackUri }));
+  } catch (error) {
+    show(mediaSessionOutput, String(error));
+  }
+});
+
+document.querySelector('#media-session-pause').addEventListener('click', async () => {
+  try {
+    show(mediaSessionOutput, await invoke('android_pause_via_media_session'));
+  } catch (error) {
+    show(mediaSessionOutput, String(error));
   }
 });
 
