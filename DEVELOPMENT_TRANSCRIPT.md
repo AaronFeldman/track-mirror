@@ -60,9 +60,26 @@ CI status observed during handoff:
 
 The branch/PR should not be treated as merged canonical code until its CI failures are addressed and it is deliberately merged into `main`.
 
+## 2026-10-23 — Recovered phone-session product directions
+
+**Recovered from the separate phone conversation and cross-checked against the repository history. The quoted line below is verbatim; the remaining points are faithful summaries of the recovered user direction, not invented quotations.**
+
+**Verbatim user direction:**
+
+> “Get working”
+
+Substantive phone-session decisions/instructions recovered from that development thread:
+
+- Preserve the already-working Linux/Spicetify Track Mirror path while developing the new Rust/Tauri architecture. It is a proven implementation and fallback/reference path, not something to break or discard merely because the cross-platform implementation is being developed.
+- Do not make Spotify's Web API the primary playback-control route for Track Mirror. Prefer local/native control of the listener's own Spotify client, using exact Spotify track URIs where available, consistent with the original Track Mirror design.
+- Keep one shared Rust `MirrorAction` decision engine and place platform-specific execution behind adapters rather than duplicating Track Mirror's baseline, filtering, duplicate suppression, or ordering logic per platform.
+- Desktop work on the phone session therefore targeted local/native Spotify playback on macOS, Windows, and Linux rather than a Web API playback implementation.
+
+These directions are repository-owner product/architecture decisions. AI assistance produced implementation code, CI changes, branch/PR organization, and explanatory prose.
+
 ## Current handoff point
 
-At the time this transcript was created:
+At the time this transcript was created and then supplemented with the recovered phone-session decisions:
 
 - `main` remains the canonical branch.
 - PR #1 (`desktop-native-playback`) contains unmerged desktop-adapter work.
