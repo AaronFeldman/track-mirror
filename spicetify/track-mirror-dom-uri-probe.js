@@ -1,6 +1,5 @@
 (function trackMirrorDomUriProbe() {
   const PREFIX = "[Track Mirror URI Probe]";
-  const STATUS_ID = "track-mirror-uri-probe-status";
 
   function normalizeText(value) {
     return (value || "").replace(/\s+/g, " ").trim();
@@ -43,37 +42,6 @@
       }
     }
     return null;
-  }
-
-  function ensureBadge() {
-    let badge = document.getElementById(STATUS_ID);
-    if (badge) return badge;
-    badge = document.createElement("div");
-    badge.id = STATUS_ID;
-    badge.setAttribute("role", "status");
-    Object.assign(badge.style, {
-      position: "fixed",
-      right: "16px",
-      bottom: "18px",
-      zIndex: "999999",
-      padding: "6px 10px",
-      borderRadius: "10px",
-      background: "rgba(20,20,20,0.92)",
-      color: "white",
-      fontSize: "11px",
-      fontWeight: "600",
-      boxShadow: "0 2px 10px rgba(0,0,0,0.35)",
-      pointerEvents: "none",
-      maxWidth: "760px",
-      whiteSpace: "normal",
-    });
-    document.body.appendChild(badge);
-    return badge;
-  }
-
-  function setBadge(text) {
-    const badge = ensureBadge();
-    if (badge.textContent !== text) badge.textContent = text;
   }
 
   function uriFromValue(value) {
@@ -119,7 +87,6 @@
     const candidates = [];
 
     for (const node of document.querySelectorAll(selectors)) {
-      if (node.closest(`#${STATUS_ID}`) || node.closest("#track-mirror-status-badge") || node.closest("#track-mirror-resolver-status")) continue;
       const text = normalizeText(node.innerText || node.textContent);
       if (!text || text.length > 500) continue;
       const key = normalizeKey(text);
@@ -158,13 +125,6 @@
 
   function probe(observations) {
     const results = (observations || []).map(probeObservation);
-    const details = results.map((r) => {
-      const title = r.parsed ? `${r.parsed.track} — ${r.parsed.artist}` : "unknown track";
-      return r.uri
-        ? `${r.friend}: ${title} ✓ ${r.uri}`
-        : `${r.friend}: ${title} ✗ ${r.reason}`;
-    });
-    setBadge(`Track Mirror URI probe • ${details.join(" | ")}`);
     window.TrackMirrorDomUriProbe.lastResults = results;
     window.dispatchEvent(new CustomEvent("track-mirror:dom-uri-results", { detail: results }));
     console.log(PREFIX, results);
@@ -177,9 +137,10 @@
       return;
     }
 
+    document.getElementById("track-mirror-uri-probe-status")?.remove();
     window.TrackMirrorDomUriProbe = { lastResults: [], probe };
     window.addEventListener("track-mirror:friend-activity", (event) => probe(event.detail || []));
-    setBadge("Track Mirror URI probe: loaded; no catalog API calls");
+    console.log(PREFIX, "loaded; no catalog API calls");
 
     const initial = window.TrackMirrorFriendActivity?.getLastObservations?.() || [];
     if (initial.length) probe(initial);
