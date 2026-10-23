@@ -11,6 +11,19 @@ Track Mirror is a Spotify companion project for mirroring track identity and pla
 - Preserve a clear development record of product decisions, experiments, and implementation changes.
 - Keep platform-specific integrations replaceable so the core design can support Linux, Windows, macOS, Android, and iOS/iPadOS.
 - Keep the durable Track Mirror decision logic in framework-independent Rust; treat Tauri and native mobile/desktop integrations as replaceable shells/adapters.
+- Use `PROJECT_STATE.md` plus `DEVELOPMENT_TRANSCRIPT.md` as the canonical recovery pair across devices, chats, resets, and development handoffs.
+
+## Development recovery and chat handoff
+
+Track Mirror uses a CLC-style recovery workflow so development does not depend on any single ChatGPT window.
+
+Before continuing development after a device change, new chat, page reset, or handoff:
+
+1. Read `PROJECT_STATE.md` for the concise canonical current state.
+2. Read `DEVELOPMENT_TRANSCRIPT.md` for the chronological human-readable development record.
+3. Inspect the active Git branch and any open pull request before changing code.
+
+When possible, open the same ChatGPT conversation on desktop and phone rather than creating parallel development threads. Already-separate chat threads cannot be literally merged or live-synchronized, so GitHub is the authoritative handoff mechanism between them.
 
 ## Current status
 
@@ -88,6 +101,7 @@ GitHub Actions runs these checks for relevant pushes and pull requests. The init
 ## Repository guide
 
 - `PROJECT_STATE.md` — canonical current project state.
+- `DEVELOPMENT_TRANSCRIPT.md` — canonical append-only human-readable development transcript and cross-chat/device handoff record.
 - `docs/DEVELOPMENT_HISTORY.md` — development and authorship/provenance record.
 - `docs/RUST_FIRST_ARCHITECTURE.md` — Rust-core / replaceable-shell architecture decision and adapter boundary.
 - `docs/INSTALL_AND_RECOVERY.md` — installation, rollback, and desktop-launcher behavior.
