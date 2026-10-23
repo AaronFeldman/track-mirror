@@ -26,6 +26,37 @@ Timestamped recovery material lives under:
 
 `~/.local/state/track-mirror/backups/`
 
+## Desktop application launcher
+
+For normal Linux desktop use, Track Mirror can be registered as its own application entry rather than launched by repeatedly pasting terminal commands.
+
+Run once from the repository:
+
+```bash
+bash scripts/install-desktop-launcher.sh
+```
+
+The launcher installer:
+
+- installs `scripts/track-mirror-launch.sh` as `~/.local/bin/track-mirror`;
+- generates `~/.local/share/applications/track-mirror.desktop` from `desktop/track-mirror.desktop.in`;
+- refreshes the per-user desktop application database when `update-desktop-database` is available;
+- leaves the user's normal Spotify installation separate and unchanged.
+
+After that installation, the user can open the desktop/application launcher and select **Track Mirror**. On COSMIC this means Track Mirror can be found like another installed application and may be pinned to the dock if desired.
+
+The desktop launcher is currently a Linux-specific convenience layer. It is not part of the platform-neutral Track Mirror core and should be replaced by appropriate launcher/packaging mechanisms on Windows, macOS, Android, and iOS/iPadOS.
+
+## Current prototype components
+
+The current desktop prototype uses separate Spicetify extensions for:
+
+- Listening Activity discovery (`track-mirror-friend-activity.js`);
+- embedded Spotify track-URI extraction (`track-mirror-dom-uri-probe.js`);
+- selectable-friend playback mirroring (`track-mirror-playback.js`).
+
+Catalog search is not required for the successful current mirroring path because the Listening Activity DOM exposes exact Spotify track URIs in the tested client build.
+
 ## Restore behavior
 
 `scripts/restore-spotify.sh`:
@@ -35,6 +66,8 @@ Timestamped recovery material lives under:
 - restores the pre-install Spicetify configuration snapshot when one exists;
 - removes the active Track Mirror installation manifest;
 - deliberately retains recovery snapshots until the user chooses to delete them.
+
+The desktop launcher files are user-level and safely reproducible. A future general-release uninstaller should remove `~/.local/bin/track-mirror` and `~/.local/share/applications/track-mirror.desktop` as part of one unified removal path.
 
 ## Important boundary
 
@@ -53,4 +86,5 @@ Do not add a new patching step unless the rollback path is updated in the same c
 - Add automatic rollback when the health check fails.
 - Add version compatibility gates for Spotify and Spicetify.
 - Add a user-facing `track-mirror doctor` command.
+- Add a unified installer/uninstaller for the desktop launcher and Spicetify components.
 - Add automated shell tests using a temporary fake Spicetify environment.
