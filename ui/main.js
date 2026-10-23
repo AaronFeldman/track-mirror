@@ -1,5 +1,8 @@
 const invoke = window.__TAURI__.core.invoke;
 
+const spotifyClientIdInput = document.querySelector('#spotify-client-id');
+const spotifyRedirectUriInput = document.querySelector('#spotify-redirect-uri');
+const spotifyStatusOutput = document.querySelector('#spotify-status');
 const listenerInput = document.querySelector('#listener');
 const trackUriInput = document.querySelector('#track-uri');
 const playingInput = document.querySelector('#is-playing');
@@ -7,6 +10,8 @@ const statusOutput = document.querySelector('#status');
 const actionOutput = document.querySelector('#action');
 
 let sequence = 1;
+
+spotifyClientIdInput.value = localStorage.getItem('track-mirror.spotify-client-id') || '';
 
 function show(output, value) {
   output.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
@@ -19,6 +24,41 @@ async function refreshStatus() {
     show(statusOutput, String(error));
   }
 }
+
+document.querySelector('#configure-spotify').addEventListener('click', async () => {
+  const clientId = spotifyClientIdInput.value.trim();
+  if (!clientId) {
+    show(spotifyStatusOutput, 'Enter the Track Mirror Spotify client ID first.');
+    return;
+  }
+
+  localStorage.setItem('track-mirror.spotify-client-id', clientId);
+
+  try {
+    show(spotifyStatusOutput, await invoke('configure_spotify', {
+      clientId,
+      redirectUri: spotifyRedirectUriInput.value.trim()
+    }));
+  } catch (error) {
+    show(spotifyStatusOutput, String(error));
+  }
+});
+
+document.querySelector('#connect-spotify').addEventListener('click', async () => {
+  try {
+    show(spotifyStatusOutput, await invoke('connect_spotify'));
+  } catch (error) {
+    show(spotifyStatusOutput, String(error));
+  }
+});
+
+document.querySelector('#disconnect-spotify').addEventListener('click', async () => {
+  try {
+    show(spotifyStatusOutput, await invoke('disconnect_spotify'));
+  } catch (error) {
+    show(spotifyStatusOutput, String(error));
+  }
+});
 
 document.querySelector('#select-listener').addEventListener('click', async () => {
   try {
@@ -61,7 +101,7 @@ document.querySelector('#send-event').addEventListener('click', async () => {
   };
 
   try {
-    show(actionOutput, await invoke('process_mirror_event', { event }));
+    show(actionOutput, await invoke('process_and_apply_mirror_event', { event }));
     await refreshStatus();
   } catch (error) {
     show(actionOutput, String(error));
