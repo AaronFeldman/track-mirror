@@ -190,6 +190,8 @@ Relevant paths include:
 
 The ordinary Spotify installation remains separate. The working proof of concept should not be removed or broken merely because the replacement Linux build is under development. Cutover occurs only after the replacement is functionally reliable and the repository owner approves it.
 
+The non-obstructive proof-of-concept UI update has been syntax-checked and is ready for installation/testing in the local Spicetify environment.
+
 ## Key design decisions
 
 1. Mirror metadata/state only; do not transmit Spotify audio.
