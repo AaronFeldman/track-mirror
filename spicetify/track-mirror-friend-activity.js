@@ -209,6 +209,25 @@
     return Array.from(byKey.values());
   }
 
+  function visibleActivitySummary(obs) {
+    const friendName = normalizeText(obs.friend?.name || "");
+    let text = normalizeText(obs.rawText || "");
+
+    if (friendName && text.toLowerCase().startsWith(friendName.toLowerCase())) {
+      text = normalizeText(text.slice(friendName.length));
+    }
+
+    text = text.replace(/^\s*[•·|\-–—:]\s*/, "");
+    text = text.replace(/\b(?:\d+\s*(?:min|mins|minute|minutes|hr|hrs|hour|hours)|now)\b\s*$/i, "").trim();
+
+    if (obs.track?.name) {
+      const pieces = [obs.track.name, obs.artist?.name].filter(Boolean);
+      return pieces.join(" — ").slice(0, 110);
+    }
+
+    return text.slice(0, 110) || "activity text unavailable";
+  }
+
   function ensureStatusBadge() {
     let badge = document.getElementById(STATUS_ID);
     if (badge) return badge;
@@ -228,7 +247,7 @@
     badge.style.fontWeight = "600";
     badge.style.boxShadow = "0 2px 10px rgba(0,0,0,0.35)";
     badge.style.pointerEvents = "none";
-    badge.style.maxWidth = "520px";
+    badge.style.maxWidth = "620px";
     badge.style.whiteSpace = "normal";
     document.body.appendChild(badge);
     return badge;
@@ -243,10 +262,12 @@
       return;
     }
 
-    const names = Array.from(new Set(
-      observations.map((obs) => obs.friend?.name).filter(Boolean)
-    )).slice(0, 4).join(", ");
-    const suffix = names ? ` • ${names}` : "";
+    const details = observations.slice(0, 4).map((obs) => {
+      const name = obs.friend?.name || "unknown";
+      return `${name}: ${visibleActivitySummary(obs)}`;
+    });
+
+    const suffix = details.length ? ` • ${details.join(" | ")}` : "";
     badge.textContent = `Track Mirror: loaded • Listening activity panel found • friends: ${observations.length}${suffix}`;
   }
 
