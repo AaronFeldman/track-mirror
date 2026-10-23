@@ -54,8 +54,19 @@ if [[ -f "$SPICETIFY_CONFIG_DIR/config-xpui.ini" ]]; then
   cp -a "$SPICETIFY_CONFIG_DIR/config-xpui.ini" "$SESSION_DIR/config-xpui.ini.before"
 fi
 
-log "Creating Spicetify backup of vanilla Spotify"
-spicetify backup
+log "Ensuring a Spicetify backup is available"
+backup_output=""
+if ! backup_output="$(spicetify backup 2>&1)"; then
+  printf '%s\n' "$backup_output"
+  if grep -Fq "A backup is available" <<<"$backup_output" && \
+     grep -Fq "Please restore first then backup" <<<"$backup_output"; then
+    log "Existing Spicetify backup retained; continuing without replacing it"
+  else
+    fail "Spicetify backup failed for an unexpected reason"
+  fi
+else
+  printf '%s\n' "$backup_output"
+fi
 
 log "Installing Track Mirror proof-of-concept extensions"
 for extension_name in "${EXTENSION_NAMES[@]}"; do
