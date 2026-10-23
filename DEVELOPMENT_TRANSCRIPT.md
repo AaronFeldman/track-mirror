@@ -151,3 +151,25 @@ This change implements the cross-platform product requirement that Track Mirror 
 - PR #1 (`desktop-native-playback`) remains separate unmerged Rust/Tauri desktop work.
 - Android/iOS Rust-to-native Spotify bridge work remains part of the shared next-generation architecture.
 - The new Linux Rust/Tauri build is to be developed in parallel and eventually replace the proof of concept only after validation and repository-owner approval.
+
+## 2026-10-23 — Visible Track Mirror identity across phone and desktop
+
+**Verbatim user directions:**
+
+> “One last change please, instead of just a play arrow please also text \"track mirror\" in the initial unclicked non-hovered view”
+
+> “make this in all versions phone and desktop please”
+
+Resulting product/UI requirement:
+
+- The primary Track Mirror control or application surface must visibly identify itself as **Track Mirror** in its normal, unclicked, non-hovered state.
+- A play icon or other graphic may accompany the text, but the primary control must not rely on an icon or hover tooltip alone.
+- Desktop builds should visibly include **Track Mirror** in the ordinary toolbar/top-bar/app control when the platform supports text there.
+- Android and iOS/iPadOS builds should visibly include **Track Mirror** in the normal app header/app bar or equivalent primary surface without requiring interaction.
+- Compact OS-only surfaces such as some tray/status icons may remain icon-only where the operating system constrains them, but the ordinary app/control surface must still show the product name.
+
+Implementation completed in the repository:
+
+- the legacy Spicetify top-bar control now augments the play icon with a persistent visible `Track Mirror` text label while retaining the richer ON/OFF/friend state in its tooltip/modal;
+- the shared Rust/Tauri `ui/index.html` now uses **Track Mirror** as its primary `h1`, making the product identity explicit in the shared phone/desktop shell;
+- `docs/PRODUCT_REQUIREMENTS.md` records the rule as a cross-platform requirement for future builds.
