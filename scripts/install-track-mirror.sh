@@ -5,18 +5,24 @@ APP_NAME="track-mirror"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/$APP_NAME"
 BACKUP_DIR="$STATE_DIR/backups"
 MANIFEST="$STATE_DIR/install-manifest.txt"
-EXTENSION_NAME="track-mirror-friend-activity.js"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE_EXTENSION="$REPO_ROOT/spicetify/$EXTENSION_NAME"
 SPICETIFY_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/spicetify"
 EXTENSIONS_DIR="$SPICETIFY_CONFIG_DIR/Extensions"
-TARGET_EXTENSION="$EXTENSIONS_DIR/$EXTENSION_NAME"
+EXTENSION_NAMES=(
+  "track-mirror-friend-activity.js"
+  "track-mirror-dom-uri-probe.js"
+  "track-mirror-playback.js"
+)
 
 log() { printf '[Track Mirror] %s\n' "$*"; }
 fail() { printf '[Track Mirror] ERROR: %s\n' "$*" >&2; exit 1; }
 
 command -v spicetify >/dev/null 2>&1 || fail "spicetify is not installed or not in PATH"
-[[ -f "$SOURCE_EXTENSION" ]] || fail "missing extension: $SOURCE_EXTENSION"
+
+for extension_name in "${EXTENSION_NAMES[@]}"; do
+  [[ -f "$REPO_ROOT/spicetify/$extension_name" ]] || \
+    fail "missing extension: $REPO_ROOT/spicetify/$extension_name"
+done
 
 mkdir -p "$BACKUP_DIR" "$EXTENSIONS_DIR"
 
@@ -37,9 +43,12 @@ printf '%s\n' "$SPICETIFY_VERSION" > "$SESSION_DIR/spicetify-version.txt"
 printf '%s\n' "$SPOTIFY_PATH" > "$SESSION_DIR/spotify-path.txt"
 printf '%s\n' "$PREFS_PATH" > "$SESSION_DIR/prefs-path.txt"
 
-if [[ -f "$TARGET_EXTENSION" ]]; then
-  cp -a "$TARGET_EXTENSION" "$SESSION_DIR/$EXTENSION_NAME.preexisting"
-fi
+for extension_name in "${EXTENSION_NAMES[@]}"; do
+  target_extension="$EXTENSIONS_DIR/$extension_name"
+  if [[ -f "$target_extension" ]]; then
+    cp -a "$target_extension" "$SESSION_DIR/$extension_name.preexisting"
+  fi
+done
 
 if [[ -f "$SPICETIFY_CONFIG_DIR/config-xpui.ini" ]]; then
   cp -a "$SPICETIFY_CONFIG_DIR/config-xpui.ini" "$SESSION_DIR/config-xpui.ini.before"
@@ -48,33 +57,49 @@ fi
 log "Creating Spicetify backup of vanilla Spotify"
 spicetify backup
 
-log "Installing Track Mirror extension"
-install -m 0644 "$SOURCE_EXTENSION" "$TARGET_EXTENSION"
+log "Installing Track Mirror proof-of-concept extensions"
+for extension_name in "${EXTENSION_NAMES[@]}"; do
+  install -m 0644 \
+    "$REPO_ROOT/spicetify/$extension_name" \
+    "$EXTENSIONS_DIR/$extension_name"
+done
 
-log "Enabling extension"
-spicetify config extensions "$EXTENSION_NAME"
+log "Enabling Track Mirror extensions"
+for extension_name in "${EXTENSION_NAMES[@]}"; do
+  spicetify config extensions "$extension_name"
+done
 
 log "Applying Spicetify patch"
 if ! spicetify apply; then
   log "Apply failed; attempting automatic rollback"
   spicetify restore || true
-  if [[ -f "$SESSION_DIR/$EXTENSION_NAME.preexisting" ]]; then
-    cp -a "$SESSION_DIR/$EXTENSION_NAME.preexisting" "$TARGET_EXTENSION"
-  else
-    rm -f "$TARGET_EXTENSION"
+
+  for extension_name in "${EXTENSION_NAMES[@]}"; do
+    target_extension="$EXTENSIONS_DIR/$extension_name"
+    if [[ -f "$SESSION_DIR/$extension_name.preexisting" ]]; then
+      cp -a "$SESSION_DIR/$extension_name.preexisting" "$target_extension"
+    else
+      rm -f "$target_extension"
+    fi
+  done
+
+  if [[ -f "$SESSION_DIR/config-xpui.ini.before" ]]; then
+    cp -a "$SESSION_DIR/config-xpui.ini.before" "$SPICETIFY_CONFIG_DIR/config-xpui.ini"
   fi
+
   fail "installation failed and rollback was attempted"
 fi
 
-cat > "$MANIFEST" <<EOF
+EXTENSIONS_JOINED="$(IFS='|'; printf '%s' "${EXTENSION_NAMES[*]}")"
+cat > "$MANIFEST" <<EOF_MANIFEST
 installed_at=$TIMESTAMP
 session_dir=$SESSION_DIR
 spotify_path=$SPOTIFY_PATH
 prefs_path=$PREFS_PATH
 spicetify_version=$SPICETIFY_VERSION
-extension=$TARGET_EXTENSION
-EOF
+extensions=$EXTENSIONS_JOINED
+EOF_MANIFEST
 
 log "Install complete"
 log "Recovery manifest: $MANIFEST"
-log "To restore vanilla Spotify, run: scripts/restore-spotify.sh"
+log "To restore the pre-Track-Mirror Spicetify state, run: scripts/restore-spotify.sh"
