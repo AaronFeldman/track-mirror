@@ -30,6 +30,36 @@ function exactTrackUri() {
   return trackUri;
 }
 
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function runExactTrackExperiment(command, trackUri) {
+  const dispatch = await invoke(command, { trackUri });
+  show(mediaSessionOutput, {
+    phase: 'command-dispatched',
+    requestedMediaId: trackUri,
+    dispatch,
+    note: 'Waiting briefly for Spotify to publish the resulting MediaSession identity.'
+  });
+
+  await delay(2500);
+
+  const status = await invoke('android_media_session_status');
+  const observedMediaId = status.mediaId || null;
+  const verified = observedMediaId === trackUri;
+  show(mediaSessionOutput, {
+    requestedMediaId: trackUri,
+    observedMediaId,
+    verifiedExactTrack: verified,
+    result: verified
+      ? 'VERIFIED: Spotify MediaSession reports the requested exact track.'
+      : 'NOT VERIFIED: Spotify MediaSession does not report the requested exact track.',
+    dispatch,
+    status
+  });
+}
+
 async function refreshStatus() {
   try {
     show(statusOutput, await invoke('engine_status'));
@@ -83,7 +113,14 @@ document.querySelector('#media-session-access').addEventListener('click', async 
 
 document.querySelector('#media-session-status').addEventListener('click', async () => {
   try {
-    show(mediaSessionOutput, await invoke('android_media_session_status'));
+    const status = await invoke('android_media_session_status');
+    const requested = mediaSessionTrackUriInput.value.trim();
+    show(mediaSessionOutput, {
+      requestedMediaId: requested || null,
+      observedMediaId: status.mediaId || null,
+      verifiedExactTrack: Boolean(requested) && status.mediaId === requested,
+      status
+    });
   } catch (error) {
     show(mediaSessionOutput, String(error));
   }
@@ -94,7 +131,7 @@ document.querySelector('#media-session-play').addEventListener('click', async ()
   if (!trackUri) return;
 
   try {
-    show(mediaSessionOutput, await invoke('android_play_track_via_media_session', { trackUri }));
+    await runExactTrackExperiment('android_play_track_via_media_session', trackUri);
   } catch (error) {
     show(mediaSessionOutput, String(error));
   }
@@ -105,7 +142,7 @@ document.querySelector('#media-session-search').addEventListener('click', async 
   if (!trackUri) return;
 
   try {
-    show(mediaSessionOutput, await invoke('android_play_track_via_media_session_search', { trackUri }));
+    await runExactTrackExperiment('android_play_track_via_media_session_search', trackUri);
   } catch (error) {
     show(mediaSessionOutput, String(error));
   }
@@ -116,7 +153,7 @@ document.querySelector('#spotify-track-link').addEventListener('click', async ()
   if (!trackUri) return;
 
   try {
-    show(mediaSessionOutput, await invoke('android_open_track_via_spotify_link', { trackUri }));
+    await runExactTrackExperiment('android_open_track_via_spotify_link', trackUri);
   } catch (error) {
     show(mediaSessionOutput, String(error));
   }
