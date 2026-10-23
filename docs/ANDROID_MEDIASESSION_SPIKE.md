@@ -48,6 +48,23 @@ Track Mirror's spike declares a minimal notification-listener service for this p
 
 This permission model must be reviewed separately for Play Store policy and user disclosure before any commercial release. The current branch is an engineering experiment only.
 
+## Emulator environment established
+
+The repository owner's emulator-first validation decision has now been implemented on the CachyOS development machine.
+
+Validated environment on 2026-10-23:
+
+- AVD name: `medium_phone`;
+- Android release: 16;
+- API level: 36;
+- emulator serial: `emulator-5554`;
+- architecture: `x86_64`;
+- Google Play Store package present: `com.android.vending`;
+- Google Play Services package present: `com.google.android.gms`;
+- Linux KVM device present and accessible, so hardware acceleration is available.
+
+This establishes a repeatable Google Play-enabled Android test environment for the MediaSession spike. Emulator success will still require later physical-device confirmation before the behavior is treated as proven in real-world use.
+
 ## Validation sequence
 
 ### Stage 1 — emulator-first development
