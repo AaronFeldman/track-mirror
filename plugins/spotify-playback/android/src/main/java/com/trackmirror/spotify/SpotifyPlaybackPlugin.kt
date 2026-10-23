@@ -73,6 +73,10 @@ class SpotifyPlaybackPlugin(private val activity: Activity) : Plugin(activity) {
             spotify.metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)?.let {
                 result.put("artist", it)
             }
+            spotify.metadata?.getString(MediaMetadata.METADATA_KEY_MEDIA_ID)?.let {
+                result.put("mediaId", it)
+            }
+            result.put("advertisedActions", advertisedActions(spotify.playbackState))
         }
         if (message != null) result.put("message", message)
         return result
@@ -94,6 +98,31 @@ class SpotifyPlaybackPlugin(private val activity: Activity) : Plugin(activity) {
         null -> null
         else -> "UNKNOWN_$state"
     }
+
+    private fun advertisedActions(state: PlaybackState?): String {
+        val actions = state?.actions ?: 0L
+        val names = mutableListOf<String>()
+        if (actions and PlaybackState.ACTION_PLAY != 0L) names += "PLAY"
+        if (actions and PlaybackState.ACTION_PAUSE != 0L) names += "PAUSE"
+        if (actions and PlaybackState.ACTION_SKIP_TO_PREVIOUS != 0L) names += "SKIP_TO_PREVIOUS"
+        if (actions and PlaybackState.ACTION_SKIP_TO_NEXT != 0L) names += "SKIP_TO_NEXT"
+        if (actions and PlaybackState.ACTION_SEEK_TO != 0L) names += "SEEK_TO"
+        if (actions and PlaybackState.ACTION_PLAY_FROM_MEDIA_ID != 0L) names += "PLAY_FROM_MEDIA_ID"
+        if (actions and PlaybackState.ACTION_PLAY_FROM_SEARCH != 0L) names += "PLAY_FROM_SEARCH"
+        if (actions and PlaybackState.ACTION_PLAY_FROM_URI != 0L) names += "PLAY_FROM_URI"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            if (actions and PlaybackState.ACTION_PREPARE_FROM_MEDIA_ID != 0L) names += "PREPARE_FROM_MEDIA_ID"
+            if (actions and PlaybackState.ACTION_PREPARE_FROM_SEARCH != 0L) names += "PREPARE_FROM_SEARCH"
+            if (actions and PlaybackState.ACTION_PREPARE_FROM_URI != 0L) names += "PREPARE_FROM_URI"
+        }
+        return names.joinToString(", ")
+    }
+
+    private fun hasAction(controller: MediaController, action: Long): Boolean =
+        ((controller.playbackState?.actions ?: 0L) and action) != 0L
+
+    private fun validTrackUri(trackUri: String): Boolean =
+        trackUri.startsWith("spotify:track:") && trackUri.removePrefix("spotify:track:").isNotBlank()
 
     private fun activeMediaControllers(): List<MediaController> {
         val manager = activity.getSystemService(MediaSessionManager::class.java)
@@ -170,7 +199,7 @@ class SpotifyPlaybackPlugin(private val activity: Activity) : Plugin(activity) {
     fun playTrack(invoke: Invoke) {
         val args = invoke.parseArgs(PlayTrackArgs::class.java)
         val trackUri = args.trackUri
-        if (!trackUri.startsWith("spotify:track:") || trackUri.removePrefix("spotify:track:").isBlank()) {
+        if (!validTrackUri(trackUri)) {
             invoke.reject("Track Mirror only accepts exact spotify:track: URIs")
             return
         }
@@ -270,7 +299,7 @@ class SpotifyPlaybackPlugin(private val activity: Activity) : Plugin(activity) {
     fun playTrackViaMediaSession(invoke: Invoke) {
         val args = invoke.parseArgs(PlayTrackArgs::class.java)
         val trackUri = args.trackUri
-        if (!trackUri.startsWith("spotify:track:") || trackUri.removePrefix("spotify:track:").isBlank()) {
+        if (!validTrackUri(trackUri)) {
             invoke.reject("MediaSession spike only accepts exact spotify:track: URIs")
             return
         }
@@ -288,6 +317,17 @@ class SpotifyPlaybackPlugin(private val activity: Activity) : Plugin(activity) {
                 )
                 return
             }
+            if (!hasAction(spotify, PlaybackState.ACTION_PLAY_FROM_URI)) {
+                invoke.resolve(
+                    mediaSessionResponse(
+                        ok = false,
+                        accessGranted = true,
+                        spotify = spotify,
+                        message = "Spotify is not currently advertising ACTION_PLAY_FROM_URI; command was not sent.",
+                    ),
+                )
+                return
+            }
 
             spotify.transportControls.playFromUri(Uri.parse(trackUri), null)
             invoke.resolve(
@@ -295,7 +335,7 @@ class SpotifyPlaybackPlugin(private val activity: Activity) : Plugin(activity) {
                     ok = true,
                     accessGranted = true,
                     spotify = spotify,
-                    message = "Android MediaSession playFromUri command sent to Spotify. Confirm on-device whether Spotify switched to the requested track.",
+                    message = "Android MediaSession playFromUri command sent. Dispatch alone is not success: re-check status and confirm MEDIA_ID changed to the requested track.",
                 ),
             )
         } catch (error: SecurityException) {
@@ -308,6 +348,106 @@ class SpotifyPlaybackPlugin(private val activity: Activity) : Plugin(activity) {
             )
         } catch (error: Throwable) {
             invoke.reject("Android MediaSession playFromUri failed: ${error.message ?: error.javaClass.simpleName}")
+        }
+    }
+
+    @Command
+    fun playTrackViaMediaSessionSearch(invoke: Invoke) {
+        val args = invoke.parseArgs(PlayTrackArgs::class.java)
+        val trackUri = args.trackUri
+        if (!validTrackUri(trackUri)) {
+            invoke.reject("MediaSession search spike only accepts exact spotify:track: URIs")
+            return
+        }
+
+        try {
+            val controllers = activeMediaControllers()
+            val spotify = spotifyController(controllers)
+            if (spotify == null) {
+                invoke.resolve(
+                    mediaSessionResponse(
+                        ok = false,
+                        accessGranted = true,
+                        message = "No active Spotify media session. Start a track in Spotify first, then retry.",
+                    ),
+                )
+                return
+            }
+            if (!hasAction(spotify, PlaybackState.ACTION_PLAY_FROM_SEARCH)) {
+                invoke.resolve(
+                    mediaSessionResponse(
+                        ok = false,
+                        accessGranted = true,
+                        spotify = spotify,
+                        message = "Spotify is not currently advertising ACTION_PLAY_FROM_SEARCH; command was not sent.",
+                    ),
+                )
+                return
+            }
+
+            spotify.transportControls.playFromSearch(trackUri, null)
+            invoke.resolve(
+                mediaSessionResponse(
+                    ok = true,
+                    accessGranted = true,
+                    spotify = spotify,
+                    message = "Experimental playFromSearch command sent with the exact Spotify URI as the query. Re-check status; success requires MEDIA_ID to equal the requested URI.",
+                ),
+            )
+        } catch (error: SecurityException) {
+            invoke.resolve(
+                mediaSessionResponse(
+                    ok = false,
+                    accessGranted = false,
+                    message = "Android denied active-media-session access. Enable Track Mirror in notification-listener settings.",
+                ),
+            )
+        } catch (error: Throwable) {
+            invoke.reject("Android MediaSession playFromSearch failed: ${error.message ?: error.javaClass.simpleName}")
+        }
+    }
+
+    @Command
+    fun openTrackViaSpotifyLink(invoke: Invoke) {
+        val args = invoke.parseArgs(PlayTrackArgs::class.java)
+        val trackUri = args.trackUri
+        if (!validTrackUri(trackUri)) {
+            invoke.reject("Spotify deep-link spike only accepts exact spotify:track: URIs")
+            return
+        }
+
+        val spotify = try {
+            spotifyController(activeMediaControllers())
+        } catch (_: SecurityException) {
+            null
+        }
+        val targetPackage = spotify?.packageName ?: "com.spotify.music"
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(trackUri)).apply {
+            setPackage(targetPackage)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        try {
+            activity.startActivity(intent)
+            invoke.resolve(
+                mediaSessionResponse(
+                    ok = true,
+                    accessGranted = spotify != null,
+                    spotify = spotify,
+                    message = "Exact Spotify track deep link launched. This may foreground Spotify. Re-check MediaSession status; success requires MEDIA_ID to equal the requested URI.",
+                ),
+            )
+        } catch (error: ActivityNotFoundException) {
+            invoke.resolve(
+                mediaSessionResponse(
+                    ok = false,
+                    accessGranted = spotify != null,
+                    spotify = spotify,
+                    message = "No installed Spotify activity accepted the exact track URI.",
+                ),
+            )
+        } catch (error: Throwable) {
+            invoke.reject("Spotify exact-track deep link failed: ${error.message ?: error.javaClass.simpleName}")
         }
     }
 
