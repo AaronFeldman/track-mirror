@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Track Mirror
+Comment=Mirror a selected friend's Spotify listening activity
+Exec=@HOME@/.local/bin/track-mirror
+Icon=spotify
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=Spotify;Track Mirror;Music;Friend Activity;
+StartupNotify=true
