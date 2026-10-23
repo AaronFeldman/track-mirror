@@ -173,3 +173,31 @@ Implementation completed in the repository:
 - the legacy Spicetify top-bar control now augments the play icon with a persistent visible `Track Mirror` text label while retaining the richer ON/OFF/friend state in its tooltip/modal;
 - the shared Rust/Tauri `ui/index.html` now uses **Track Mirror** as its primary `h1`, making the product identity explicit in the shared phone/desktop shell;
 - `docs/PRODUCT_REQUIREMENTS.md` records the rule as a cross-platform requirement for future builds.
+
+## 2026-10-23 — Approved reference UI and self-dismissing quick controls
+
+**Verbatim user directions:**
+
+> “This is very good. Record this as our reference visual UI control implementation to be carried forward on all versions if possible.”
+
+> “one thing does bug me about this is that you have to x out of the last dialogue. Can we make it once you make the change(s) it doesn't require you to x out of it. Because elderly etc won't understand that you are not dismissing track mirror that way. You know what I mean?”
+
+> “Lets update the project requirements across the board to require this”
+
+Resulting cross-platform requirements:
+
+- The approved Linux Spicetify screenshots/control flow are the visual and interaction reference for Track Mirror quick controls across Linux, Windows, macOS, Android, and iOS/iPadOS where platform conventions permit an equivalent implementation.
+- The reference pattern consists of a visible **Track Mirror** entry in normal app chrome, an on-demand compact quick-control surface, a source/friend selector, a large explicit **Mirroring ON / Mirroring OFF** control, concise status text, and no permanent overlay over host-app content.
+- Quick-control changes take effect immediately; there is no Save/Apply requirement for normal friend/source selection or mirroring-state changes.
+- Selecting a friend/source completes the quick-control interaction and should automatically dismiss the modal/popover/sheet after a short confirmation interval.
+- Pressing **Mirroring ON / Mirroring OFF** likewise completes the interaction and should automatically dismiss the quick-control surface.
+- An X/close affordance may remain as a fallback, but ordinary use must not require it.
+- Closing or dismissing the quick-control surface **never** turns Track Mirror off. Mirroring state changes only through the explicit ON/OFF control.
+- The design goal explicitly includes users who may not infer ambiguous UI conventions, including older or less technical users.
+
+Repository record and implementation:
+
+- `docs/UI_REFERENCE.md` now records the approved cross-platform visual/interaction pattern in a dedicated reference specification.
+- `docs/PRODUCT_REQUIREMENTS.md` makes self-dismissing quick controls a mandatory phone/tablet/desktop requirement.
+- `spicetify/track-mirror-playback.js` implements immediate changes plus automatic modal dismissal after friend selection or Mirroring ON/OFF.
+- The executable Spicetify proof of concept remains the most complete current implementation of the approved reference pattern and is the behavior to reproduce in the next-generation platform shells where possible.
