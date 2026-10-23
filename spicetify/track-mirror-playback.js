@@ -2,6 +2,7 @@
   const PREFIX = "[Track Mirror Playback]";
   const ENABLED_KEY = "track-mirror:playback-enabled";
   const TARGET_KEY = "track-mirror:target-friend";
+  const TOPBAR_TEXT_CLASS = "track-mirror-topbar-visible-label";
 
   let enabled = localStorage.getItem(ENABLED_KEY) === "true";
   let selectedFriend = localStorage.getItem(TARGET_KEY) || "Amanda";
@@ -61,11 +62,42 @@
     });
   }
 
+  function ensureVisibleTopbarLabel() {
+    const element = topbarButton?.element;
+    if (!element) return;
+
+    Object.assign(element.style, {
+      width: "auto",
+      minWidth: "max-content",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "6px",
+      paddingInline: "10px",
+      whiteSpace: "nowrap",
+    });
+
+    let label = element.querySelector(`.${TOPBAR_TEXT_CLASS}`);
+    if (!label) {
+      label = document.createElement("span");
+      label.className = TOPBAR_TEXT_CLASS;
+      Object.assign(label.style, {
+        fontSize: "12px",
+        fontWeight: "700",
+        lineHeight: "1",
+        pointerEvents: "none",
+      });
+      element.appendChild(label);
+    }
+
+    label.textContent = "Track Mirror";
+  }
+
   function updateTopbarButton() {
     if (!topbarButton) return;
     topbarButton.label = enabled
       ? `Track Mirror: ON • ${selectedFriend}`
       : "Track Mirror: OFF";
+    ensureVisibleTopbarLabel();
   }
 
   function controlPanelElement() {
