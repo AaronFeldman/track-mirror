@@ -27,3 +27,21 @@ pub struct PlaybackResponse {
     #[serde(default)]
     pub message: Option<String>,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AndroidMediaSessionResponse {
+    pub ok: bool,
+    pub access_granted: bool,
+    pub spotify_session_found: bool,
+    #[serde(default)]
+    pub spotify_package: Option<String>,
+    #[serde(default)]
+    pub playback_state: Option<String>,
+    #[serde(default)]
+    pub track_title: Option<String>,
+    #[serde(default)]
+    pub artist: Option<String>,
+    #[serde(default)]
+    pub message: Option<String>,
+}
