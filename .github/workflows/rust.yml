@@ -5,6 +5,7 @@ on:
     paths:
       - 'Cargo.toml'
       - 'crates/**'
+      - 'plugins/**'
       - 'src-tauri/**'
       - 'ui/**'
       - '.github/workflows/rust.yml'
@@ -12,6 +13,7 @@ on:
     paths:
       - 'Cargo.toml'
       - 'crates/**'
+      - 'plugins/**'
       - 'src-tauri/**'
       - 'ui/**'
       - '.github/workflows/rust.yml'
@@ -43,5 +45,5 @@ jobs:
             libssl-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev
-      - name: Check Tauri shell
+      - name: Check Tauri shell and playback plugin Rust bridge
         run: cargo check -p track-mirror-app
