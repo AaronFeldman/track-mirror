@@ -1,8 +1,8 @@
 (function trackMirrorPlayback() {
   const PREFIX = "[Track Mirror Playback]";
-  const CONTROL_ID = "track-mirror-playback-control";
   const SELECT_ID = "track-mirror-friend-select";
   const BUTTON_ID = "track-mirror-playback-toggle";
+  const STATUS_ID = "track-mirror-playback-status";
   const ENABLED_KEY = "track-mirror:playback-enabled";
   const TARGET_KEY = "track-mirror:target-friend";
 
@@ -11,6 +11,8 @@
   let lastSeenUri = null;
   let lastPlayedUri = null;
   let lastResults = [];
+  let lastStatus = "";
+  let topbarButton = null;
 
   function normalize(value) {
     return (value || "").replace(/\s+/g, " ").trim();
@@ -32,38 +34,44 @@
     return Spicetify.Player?.data?.item?.uri || null;
   }
 
-  function ensureControl() {
-    let wrap = document.getElementById(CONTROL_ID);
-    if (wrap) return wrap;
+  function updateTopbarButton() {
+    if (!topbarButton) return;
+    topbarButton.label = enabled
+      ? `Track Mirror: ON • ${selectedFriend}`
+      : "Track Mirror: OFF";
+    if (topbarButton.tippy?.setContent) {
+      topbarButton.tippy.setContent(topbarButton.label);
+    }
+  }
 
-    wrap = document.createElement("div");
-    wrap.id = CONTROL_ID;
-    Object.assign(wrap.style, {
-      position: "fixed",
-      right: "16px",
-      bottom: "122px",
-      zIndex: "1000000",
-      display: "flex",
-      alignItems: "center",
+  function buildControlPanel() {
+    const panel = document.createElement("div");
+    Object.assign(panel.style, {
+      display: "grid",
+      gap: "12px",
+      minWidth: "320px",
+      padding: "4px 2px",
+    });
+
+    const friendLabel = document.createElement("label");
+    friendLabel.textContent = "Friend to mirror";
+    Object.assign(friendLabel.style, {
+      display: "grid",
       gap: "6px",
-      padding: "6px",
-      borderRadius: "14px",
-      border: "1px solid rgba(255,255,255,0.20)",
-      background: "rgba(20,20,20,0.94)",
-      boxShadow: "0 2px 10px rgba(0,0,0,0.35)",
+      fontSize: "13px",
+      fontWeight: "600",
     });
 
     const select = document.createElement("select");
     select.id = SELECT_ID;
     Object.assign(select.style, {
-      maxWidth: "180px",
-      padding: "6px 8px",
-      borderRadius: "10px",
-      border: "1px solid rgba(255,255,255,0.22)",
-      background: "rgba(35,35,35,0.98)",
-      color: "white",
-      fontSize: "12px",
-      fontWeight: "600",
+      width: "100%",
+      padding: "8px 10px",
+      borderRadius: "8px",
+      border: "1px solid rgba(255,255,255,0.20)",
+      background: "var(--spice-card, rgba(35,35,35,0.98))",
+      color: "var(--spice-text, white)",
+      fontSize: "13px",
       cursor: "pointer",
     });
 
@@ -77,19 +85,21 @@
       console.log(PREFIX, "target changed", { selectedFriend, baselineUri: lastSeenUri });
     });
 
+    friendLabel.appendChild(select);
+
     const button = document.createElement("button");
     button.id = BUTTON_ID;
     button.type = "button";
     Object.assign(button.style, {
-      padding: "7px 11px",
+      width: "100%",
+      padding: "9px 12px",
       borderRadius: "999px",
-      border: "1px solid rgba(255,255,255,0.28)",
-      background: "rgba(20,20,20,0.94)",
-      color: "white",
-      fontSize: "12px",
+      border: "1px solid rgba(255,255,255,0.25)",
+      background: "var(--spice-button, rgba(30,30,30,0.98))",
+      color: "var(--spice-text, white)",
+      fontSize: "13px",
       fontWeight: "700",
       cursor: "pointer",
-      whiteSpace: "nowrap",
     });
 
     button.addEventListener("click", () => {
@@ -106,14 +116,57 @@
       });
     });
 
-    wrap.appendChild(select);
-    wrap.appendChild(button);
-    document.body.appendChild(wrap);
-    return wrap;
+    const status = document.createElement("div");
+    status.id = STATUS_ID;
+    Object.assign(status.style, {
+      minHeight: "18px",
+      fontSize: "12px",
+      lineHeight: "1.4",
+      opacity: "0.75",
+    });
+
+    const hint = document.createElement("div");
+    hint.textContent = "These controls now live here instead of floating over Spotify content.";
+    Object.assign(hint.style, {
+      fontSize: "11px",
+      lineHeight: "1.4",
+      opacity: "0.55",
+    });
+
+    panel.appendChild(friendLabel);
+    panel.appendChild(button);
+    panel.appendChild(status);
+    panel.appendChild(hint);
+
+    return panel;
+  }
+
+  function openControlModal() {
+    const content = buildControlPanel();
+    Spicetify.PopupModal.display({
+      title: "Track Mirror",
+      content,
+    });
+    refreshFriendOptions();
+    renderControl(lastStatus);
+  }
+
+  function ensureTopbarButton() {
+    if (topbarButton) return topbarButton;
+
+    topbarButton = new Spicetify.Topbar.Button(
+      enabled ? `Track Mirror: ON • ${selectedFriend}` : "Track Mirror: OFF",
+      "play",
+      () => openControlModal(),
+      false,
+      true,
+    );
+
+    updateTopbarButton();
+    return topbarButton;
   }
 
   function refreshFriendOptions() {
-    ensureControl();
     const select = document.getElementById(SELECT_ID);
     if (!select) return;
 
@@ -147,13 +200,22 @@
   }
 
   function renderControl(extra = "") {
-    ensureControl();
+    lastStatus = extra;
+    ensureTopbarButton();
+    updateTopbarButton();
     refreshFriendOptions();
+
     const button = document.getElementById(BUTTON_ID);
-    if (!button) return;
-    const state = enabled ? "ON" : "OFF";
-    button.textContent = `Mirror: ${state}${extra ? ` • ${extra}` : ""}`;
-    button.title = `Mirror ${selectedFriend}`;
+    if (button) {
+      button.textContent = enabled ? "Mirroring ON" : "Mirroring OFF";
+      button.title = `Mirror ${selectedFriend}`;
+    }
+
+    const status = document.getElementById(STATUS_ID);
+    if (status) {
+      const state = enabled ? `Mirroring ${selectedFriend}` : "Mirroring is off";
+      status.textContent = extra ? `${state} • ${extra}` : state;
+    }
   }
 
   async function maybeMirror(results) {
@@ -206,10 +268,17 @@
   }
 
   function start() {
-    if (!window.Spicetify?.Player?.playUri) {
+    if (
+      !window.Spicetify?.Player?.playUri ||
+      !window.Spicetify?.Topbar?.Button ||
+      !window.Spicetify?.PopupModal?.display
+    ) {
       setTimeout(start, 250);
       return;
     }
+
+    const oldFloatingControl = document.getElementById("track-mirror-playback-control");
+    if (oldFloatingControl) oldFloatingControl.remove();
 
     window.TrackMirrorPlayback = {
       get enabled() { return enabled; },
@@ -228,6 +297,9 @@
         lastSeenUri = current?.uri || null;
         lastPlayedUri = null;
         renderControl(enabled ? "armed; waiting for change" : "");
+      },
+      openControls() {
+        openControlModal();
       },
       get lastSeenUri() { return lastSeenUri; },
       get lastPlayedUri() { return lastPlayedUri; },
