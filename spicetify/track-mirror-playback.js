@@ -1,9 +1,13 @@
 (function trackMirrorPlayback() {
   const PREFIX = "[Track Mirror Playback]";
   const CONTROL_ID = "track-mirror-playback-control";
-  const TARGET_FRIEND = "Amanda";
-  const STORAGE_KEY = "track-mirror:playback-enabled";
-  let enabled = localStorage.getItem(STORAGE_KEY) === "true";
+  const SELECT_ID = "track-mirror-friend-select";
+  const BUTTON_ID = "track-mirror-playback-toggle";
+  const ENABLED_KEY = "track-mirror:playback-enabled";
+  const TARGET_KEY = "track-mirror:target-friend";
+
+  let enabled = localStorage.getItem(ENABLED_KEY) === "true";
+  let selectedFriend = localStorage.getItem(TARGET_KEY) || "Amanda";
   let lastSeenUri = null;
   let lastPlayedUri = null;
   let lastResults = [];
@@ -12,8 +16,16 @@
     return (value || "").replace(/\s+/g, " ").trim();
   }
 
+  function friendNames(results) {
+    const names = (results || [])
+      .map((item) => normalize(item.friend))
+      .filter(Boolean);
+    return Array.from(new Set(names));
+  }
+
   function targetResult(results) {
-    return (results || []).find((item) => normalize(item.friend).toLowerCase() === TARGET_FRIEND.toLowerCase()) || null;
+    const wanted = normalize(selectedFriend).toLowerCase();
+    return (results || []).find((item) => normalize(item.friend).toLowerCase() === wanted) || null;
   }
 
   function currentPlayerUri() {
@@ -21,18 +33,55 @@
   }
 
   function ensureControl() {
-    let control = document.getElementById(CONTROL_ID);
-    if (control) return control;
+    let wrap = document.getElementById(CONTROL_ID);
+    if (wrap) return wrap;
 
-    control = document.createElement("button");
-    control.id = CONTROL_ID;
-    control.type = "button";
-    Object.assign(control.style, {
+    wrap = document.createElement("div");
+    wrap.id = CONTROL_ID;
+    Object.assign(wrap.style, {
       position: "fixed",
       right: "16px",
       bottom: "122px",
       zIndex: "1000000",
-      padding: "8px 12px",
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      padding: "6px",
+      borderRadius: "14px",
+      border: "1px solid rgba(255,255,255,0.20)",
+      background: "rgba(20,20,20,0.94)",
+      boxShadow: "0 2px 10px rgba(0,0,0,0.35)",
+    });
+
+    const select = document.createElement("select");
+    select.id = SELECT_ID;
+    Object.assign(select.style, {
+      maxWidth: "180px",
+      padding: "6px 8px",
+      borderRadius: "10px",
+      border: "1px solid rgba(255,255,255,0.22)",
+      background: "rgba(35,35,35,0.98)",
+      color: "white",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer",
+    });
+
+    select.addEventListener("change", () => {
+      selectedFriend = select.value;
+      localStorage.setItem(TARGET_KEY, selectedFriend);
+      const current = targetResult(lastResults);
+      lastSeenUri = current?.uri || null;
+      lastPlayedUri = null;
+      renderControl(enabled ? "armed; waiting for change" : "");
+      console.log(PREFIX, "target changed", { selectedFriend, baselineUri: lastSeenUri });
+    });
+
+    const button = document.createElement("button");
+    button.id = BUTTON_ID;
+    button.type = "button";
+    Object.assign(button.style, {
+      padding: "7px 11px",
       borderRadius: "999px",
       border: "1px solid rgba(255,255,255,0.28)",
       background: "rgba(20,20,20,0.94)",
@@ -40,38 +89,80 @@
       fontSize: "12px",
       fontWeight: "700",
       cursor: "pointer",
-      boxShadow: "0 2px 10px rgba(0,0,0,0.35)",
+      whiteSpace: "nowrap",
     });
 
-    control.addEventListener("click", () => {
+    button.addEventListener("click", () => {
       enabled = !enabled;
-      localStorage.setItem(STORAGE_KEY, enabled ? "true" : "false");
+      localStorage.setItem(ENABLED_KEY, enabled ? "true" : "false");
       if (enabled) {
-        // Treat the currently displayed URI as baseline so enabling does not
-        // immediately start possibly stale activity. We only react to the
-        // next URI change after the user arms mirroring.
         const current = targetResult(lastResults);
         lastSeenUri = current?.uri || null;
       }
-      renderControl();
-      console.log(PREFIX, enabled ? "enabled" : "disabled", { baselineUri: lastSeenUri });
+      renderControl(enabled ? "armed; waiting for change" : "");
+      console.log(PREFIX, enabled ? "enabled" : "disabled", {
+        selectedFriend,
+        baselineUri: lastSeenUri,
+      });
     });
 
-    document.body.appendChild(control);
-    return control;
+    wrap.appendChild(select);
+    wrap.appendChild(button);
+    document.body.appendChild(wrap);
+    return wrap;
+  }
+
+  function refreshFriendOptions() {
+    ensureControl();
+    const select = document.getElementById(SELECT_ID);
+    if (!select) return;
+
+    const names = friendNames(lastResults);
+    if (selectedFriend && !names.some((name) => name.toLowerCase() === selectedFriend.toLowerCase())) {
+      names.unshift(selectedFriend);
+    }
+
+    const currentOptions = Array.from(select.options).map((option) => option.value);
+    if (currentOptions.length === names.length && currentOptions.every((value, index) => value === names[index])) {
+      select.value = selectedFriend;
+      return;
+    }
+
+    select.replaceChildren();
+    for (const name of names) {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      select.appendChild(option);
+    }
+
+    if (!names.length) {
+      const option = document.createElement("option");
+      option.value = selectedFriend || "";
+      option.textContent = selectedFriend || "No friends detected";
+      select.appendChild(option);
+    }
+
+    select.value = selectedFriend;
   }
 
   function renderControl(extra = "") {
-    const control = ensureControl();
+    ensureControl();
+    refreshFriendOptions();
+    const button = document.getElementById(BUTTON_ID);
+    if (!button) return;
     const state = enabled ? "ON" : "OFF";
-    control.textContent = `Mirror ${TARGET_FRIEND}: ${state}${extra ? ` • ${extra}` : ""}`;
+    button.textContent = `Mirror: ${state}${extra ? ` • ${extra}` : ""}`;
+    button.title = `Mirror ${selectedFriend}`;
   }
 
   async function maybeMirror(results) {
     lastResults = results || [];
+    refreshFriendOptions();
+
     const result = targetResult(lastResults);
     if (!result?.uri) {
-      renderControl(enabled ? "waiting for track URI" : "");
+      renderControl(enabled ? `waiting for ${selectedFriend}` : "");
       return;
     }
 
@@ -106,7 +197,7 @@
       await Spicetify.Player.playUri(uri);
       lastPlayedUri = uri;
       renderControl("mirrored latest change");
-      console.log(PREFIX, "mirrored", { friend: TARGET_FRIEND, uri, parsed: result.parsed || null });
+      console.log(PREFIX, "mirrored", { friend: selectedFriend, uri, parsed: result.parsed || null });
     } catch (error) {
       const message = normalize(error?.message || String(error)).slice(0, 90);
       renderControl(`playback error: ${message}`);
@@ -122,12 +213,21 @@
 
     window.TrackMirrorPlayback = {
       get enabled() { return enabled; },
+      get selectedFriend() { return selectedFriend; },
       setEnabled(value) {
         enabled = Boolean(value);
-        localStorage.setItem(STORAGE_KEY, enabled ? "true" : "false");
+        localStorage.setItem(ENABLED_KEY, enabled ? "true" : "false");
         const current = targetResult(lastResults);
         lastSeenUri = current?.uri || lastSeenUri;
-        renderControl();
+        renderControl(enabled ? "armed; waiting for change" : "");
+      },
+      setSelectedFriend(value) {
+        selectedFriend = normalize(value) || selectedFriend;
+        localStorage.setItem(TARGET_KEY, selectedFriend);
+        const current = targetResult(lastResults);
+        lastSeenUri = current?.uri || null;
+        lastPlayedUri = null;
+        renderControl(enabled ? "armed; waiting for change" : "");
       },
       get lastSeenUri() { return lastSeenUri; },
       get lastPlayedUri() { return lastPlayedUri; },
@@ -140,11 +240,16 @@
     const initial = window.TrackMirrorDomUriProbe?.lastResults || [];
     if (initial.length) {
       lastResults = initial;
+      const names = friendNames(initial);
+      if (!names.some((name) => name.toLowerCase() === selectedFriend.toLowerCase()) && names.length) {
+        selectedFriend = names[0];
+        localStorage.setItem(TARGET_KEY, selectedFriend);
+      }
       lastSeenUri = targetResult(initial)?.uri || null;
     }
 
-    renderControl();
-    console.log(PREFIX, "loaded", { enabled, target: TARGET_FRIEND, baselineUri: lastSeenUri });
+    renderControl(enabled ? "armed; waiting for change" : "");
+    console.log(PREFIX, "loaded", { enabled, selectedFriend, baselineUri: lastSeenUri });
   }
 
   start();
