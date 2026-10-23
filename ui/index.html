@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Track Mirror</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">TRACK MIRROR</p>
+      <h1>Rust-first cross-platform shell</h1>
+      <p class="lede">The UI is intentionally thin. Mirroring decisions live in the shared Rust core; Spotify control will be supplied by platform adapters.</p>
+    </header>
+
+    <section class="card">
+      <h2>Source listener</h2>
+      <div class="row">
+        <label for="listener">Listener ID</label>
+        <input id="listener" value="amanda" autocomplete="off" />
+        <button id="select-listener">Select</button>
+      </div>
+      <div class="row actions">
+        <button id="arm">Arm mirroring</button>
+        <button id="disarm" class="secondary">Disarm</button>
+      </div>
+      <pre id="status">Loading engine status…</pre>
+    </section>
+
+    <section class="card">
+      <h2>Development event tester</h2>
+      <p>This exercises the shared Rust engine only. It does not control Spotify yet.</p>
+      <div class="row">
+        <label for="track-uri">Spotify track URI</label>
+        <input id="track-uri" value="spotify:track:test-track-1" autocomplete="off" />
+      </div>
+      <label class="check"><input id="is-playing" type="checkbox" checked /> Source is playing</label>
+      <button id="send-event">Process test event</button>
+      <pre id="action">No event processed yet.</pre>
+    </section>
+  </main>
+  <script src="main.js"></script>
+</body>
+</html>
