@@ -43,5 +43,9 @@ pub struct AndroidMediaSessionResponse {
     #[serde(default)]
     pub artist: Option<String>,
     #[serde(default)]
+    pub media_id: Option<String>,
+    #[serde(default)]
+    pub advertised_actions: Option<String>,
+    #[serde(default)]
     pub message: Option<String>,
 }
