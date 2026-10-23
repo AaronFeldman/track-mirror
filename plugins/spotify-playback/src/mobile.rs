@@ -105,6 +105,32 @@ impl<R: Runtime> SpotifyPlayback<R> {
     }
 
     #[cfg(target_os = "android")]
+    pub fn play_track_via_media_session_search(
+        &self,
+        track_uri: String,
+    ) -> Result<AndroidMediaSessionResponse> {
+        self.0
+            .run_mobile_plugin(
+                "playTrackViaMediaSessionSearch",
+                PlayTrackRequest { track_uri },
+            )
+            .map_err(Into::into)
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn open_track_via_spotify_link(
+        &self,
+        track_uri: String,
+    ) -> Result<AndroidMediaSessionResponse> {
+        self.0
+            .run_mobile_plugin(
+                "openTrackViaSpotifyLink",
+                PlayTrackRequest { track_uri },
+            )
+            .map_err(Into::into)
+    }
+
+    #[cfg(target_os = "android")]
     pub fn pause_via_media_session(&self) -> Result<AndroidMediaSessionResponse> {
         self.0
             .run_mobile_plugin("pauseViaMediaSession", ())
