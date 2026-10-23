@@ -1,0 +1,16 @@
+[workspace]
+members = [
+    "crates/track-mirror-core",
+    "src-tauri",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+repository = "https://github.com/AaronFeldman/track-mirror"
+publish = false
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
