@@ -11,12 +11,12 @@
     <header>
       <p class="eyebrow">SPOTIFY COMPANION</p>
       <h1>Track Mirror</h1>
-      <p class="lede">Rust-first cross-platform mirroring. Mirroring decisions live in the shared Rust core. Android and iOS hand only actionable playback commands to Spotify's native App Remote SDK.</p>
+      <p class="lede">Rust-first cross-platform mirroring. Mirroring decisions live in the shared Rust core. Platform adapters execute only actionable playback commands.</p>
     </header>
 
     <section class="card">
-      <h2>Mobile Spotify adapter</h2>
-      <p>Android/iOS development setup. The Spotify client ID is public application configuration, not a client secret.</p>
+      <h2>Legacy mobile Spotify App Remote adapter</h2>
+      <p>Development/reference path only while the Android MediaSession route is tested. The Spotify client ID is public application configuration, not a client secret.</p>
       <div class="row">
         <label for="spotify-client-id">Spotify client ID</label>
         <input id="spotify-client-id" autocomplete="off" placeholder="Paste Track Mirror Spotify client ID" />
@@ -30,7 +30,25 @@
         <button id="connect-spotify" class="secondary">Connect</button>
         <button id="disconnect-spotify" class="secondary">Disconnect</button>
       </div>
-      <pre id="spotify-status">Spotify adapter not configured.</pre>
+      <pre id="spotify-status">Spotify App Remote adapter not configured.</pre>
+    </section>
+
+    <section class="card">
+      <h2>Android MediaSession spike</h2>
+      <p>This experiment does not use Spotify App Remote or Spotify Web API playback commands. Start Spotify and play any track first, enable Track Mirror's Android media-control access, then test an exact <code>spotify:track:</code> URI.</p>
+      <div class="row actions">
+        <button id="media-session-access">Enable media-control access</button>
+        <button id="media-session-status" class="secondary">Check Spotify session</button>
+      </div>
+      <div class="row">
+        <label for="media-session-track-uri">Exact Spotify track URI</label>
+        <input id="media-session-track-uri" autocomplete="off" placeholder="spotify:track:..." />
+      </div>
+      <div class="row actions">
+        <button id="media-session-play">Test exact-track play</button>
+        <button id="media-session-pause" class="secondary">Test pause</button>
+      </div>
+      <pre id="media-session-output">MediaSession spike not tested yet.</pre>
     </section>
 
     <section class="card">
@@ -49,7 +67,7 @@
 
     <section class="card">
       <h2>Development event tester</h2>
-      <p>The first event after arming is only a baseline. Change the URI and send a second event to produce a real <code>play_track</code> action. On Android/iOS that action is now forwarded to Spotify.</p>
+      <p>The first event after arming is only a baseline. Change the URI and send a second event to produce a real <code>play_track</code> action. The normal mobile path remains unchanged on this spike branch until MediaSession behavior is proven.</p>
       <div class="row">
         <label for="track-uri">Spotify track URI</label>
         <input id="track-uri" value="spotify:track:test-track-1" autocomplete="off" />
