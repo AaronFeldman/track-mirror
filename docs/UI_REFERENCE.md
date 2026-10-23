@@ -36,8 +36,10 @@ The quick-control surface must not become a permanent overlay or obscure host-ap
 Quick controls are action-oriented, not a settings form that requires a separate Save or Close step.
 
 - Changes take effect immediately.
-- Selecting a friend/source is itself a completed action and should dismiss the quick-control surface automatically.
-- Pressing **Mirroring ON / Mirroring OFF** is a completed action and should dismiss the quick-control surface automatically.
+- The quick-control surface should dismiss itself when the user's intended interaction is complete.
+- Pressing **Mirroring ON / Mirroring OFF** completes the interaction and should dismiss the surface automatically.
+- If mirroring is already ON, selecting a different friend/source immediately retargets mirroring and completes the interaction, so the surface should dismiss automatically.
+- If mirroring is OFF, selecting a friend/source should take effect immediately but the surface may remain open so the user can still press **Mirroring ON** without reopening Track Mirror.
 - A short delay may be used so the user can perceive the changed state before dismissal.
 - A visible X/close gesture may remain as a fallback, but ordinary use must not require it.
 - Closing/dismissing the quick-control surface must never change mirroring state.
@@ -62,7 +64,7 @@ Preferred pattern:
 - toolbar/top-bar/menu-bar/application-chrome entry showing **Track Mirror**;
 - click opens a compact popover/modal;
 - friend/source selection and Mirroring ON/OFF live in that quick-control surface;
-- completed actions auto-dismiss the surface.
+- completed interactions auto-dismiss the surface.
 
 A system tray/status icon may be icon-only if the OS surface requires it, but the ordinary Track Mirror application/control surface must still expose the product name visibly.
 
@@ -73,7 +75,7 @@ Preferred pattern:
 - app bar/header visibly identifies **Track Mirror**;
 - quick control may use a bottom sheet, dialog, or compact screen appropriate to Android conventions;
 - source selection and Mirroring ON/OFF take effect immediately;
-- completed actions close the quick-control surface automatically.
+- completed interactions close the quick-control surface automatically.
 
 ### iPhone / iPad
 
@@ -82,7 +84,7 @@ Preferred pattern:
 - navigation/app header visibly identifies **Track Mirror**;
 - quick control may use a sheet, popover, or compact view appropriate to Apple platform conventions;
 - source selection and Mirroring ON/OFF take effect immediately;
-- completed actions dismiss the quick-control surface automatically.
+- completed interactions dismiss the quick-control surface automatically.
 
 ## Accessibility and clarity
 
@@ -93,9 +95,10 @@ Required principles:
 - visible product identity rather than icon-only identification;
 - large, explicit ON/OFF wording rather than ambiguous symbolic state;
 - immediate action feedback;
-- no unnecessary Save/Apply/Close step after a simple change;
+- no unnecessary Save/Apply/Close step after a completed change sequence;
 - no reliance on an X to complete the ordinary workflow;
 - closing a panel is never equivalent to disabling Track Mirror;
+- allow a natural multi-step sequence such as selecting a source and then turning mirroring ON without forcing the user to reopen the controls;
 - concise language and predictable control placement;
 - preserve usable host-app space.
 
@@ -110,6 +113,6 @@ The legacy Spicetify proof of concept currently embodies the reference pattern m
 - state/status text;
 - no permanent Track Mirror overlays;
 - immediate application of changes;
-- automatic dismissal after a completed quick action.
+- automatic dismissal after a completed quick-control interaction.
 
 Future Track Mirror UI work should start from this reference unless a platform-native convention provides a clearly better implementation of the same usability requirements.
