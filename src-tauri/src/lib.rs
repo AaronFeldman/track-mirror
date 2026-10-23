@@ -3,7 +3,9 @@ use std::sync::Mutex;
 use tauri::{AppHandle, State};
 use tauri_plugin_deep_link::DeepLinkExt;
 use track_mirror_core::{EngineStatus, MirrorAction, MirrorEngine, MirrorEvent};
-use track_mirror_spotify_playback::{PlaybackResponse, SpotifyPlaybackExt};
+use track_mirror_spotify_playback::{
+    AndroidMediaSessionResponse, PlaybackResponse, SpotifyPlaybackExt,
+};
 
 struct AppState(Mutex<MirrorEngine>);
 
@@ -89,6 +91,83 @@ fn handle_spotify_authorization_callback(
     app.spotify_playback()
         .handle_authorization_callback(url)
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn android_open_media_control_access(
+    app: AppHandle,
+) -> Result<AndroidMediaSessionResponse, String> {
+    #[cfg(target_os = "android")]
+    {
+        return app
+            .spotify_playback()
+            .open_media_control_access_settings()
+            .map_err(|error| error.to_string());
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        Err("Android MediaSession controls are available only on Android".into())
+    }
+}
+
+#[tauri::command]
+fn android_media_session_status(
+    app: AppHandle,
+) -> Result<AndroidMediaSessionResponse, String> {
+    #[cfg(target_os = "android")]
+    {
+        return app
+            .spotify_playback()
+            .media_session_status()
+            .map_err(|error| error.to_string());
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        Err("Android MediaSession controls are available only on Android".into())
+    }
+}
+
+#[tauri::command]
+fn android_play_track_via_media_session(
+    track_uri: String,
+    app: AppHandle,
+) -> Result<AndroidMediaSessionResponse, String> {
+    #[cfg(target_os = "android")]
+    {
+        return app
+            .spotify_playback()
+            .play_track_via_media_session(track_uri)
+            .map_err(|error| error.to_string());
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (track_uri, app);
+        Err("Android MediaSession controls are available only on Android".into())
+    }
+}
+
+#[tauri::command]
+fn android_pause_via_media_session(
+    app: AppHandle,
+) -> Result<AndroidMediaSessionResponse, String> {
+    #[cfg(target_os = "android")]
+    {
+        return app
+            .spotify_playback()
+            .pause_via_media_session()
+            .map_err(|error| error.to_string());
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        Err("Android MediaSession controls are available only on Android".into())
+    }
 }
 
 #[tauri::command]
@@ -193,6 +272,10 @@ pub fn run() {
             connect_spotify,
             disconnect_spotify,
             handle_spotify_authorization_callback,
+            android_open_media_control_access,
+            android_media_session_status,
+            android_play_track_via_media_session,
+            android_pause_via_media_session,
             process_mirror_event,
             process_and_apply_mirror_event
         ])
