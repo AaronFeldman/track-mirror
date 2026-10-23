@@ -23,9 +23,11 @@ Track Mirror is a Spotify companion application that mirrors track identity and 
 - Android and iOS/iPadOS are the current first device-validation targets, while Linux, Windows, and macOS remain first-class architectural targets.
 - Across every build, Track Mirror controls must **not permanently obscure Spotify/app content**. Prefer normal app chrome for compact status/control, an on-demand modal/popover/sheet for quick controls, and a dedicated Track Mirror screen/window for expanded configuration and diagnostics.
 - Across every build, the normal primary control/app surface must visibly identify itself as **Track Mirror** without requiring hover or a prior click.
+- The approved primary-control state cue is **▷ Track Mirror** for mirroring OFF and **⇄ Track Mirror** for mirroring ON, or the closest unambiguous native equivalent where exact glyphs are unsuitable.
+- The state glyph/icon and **Track Mirror** label must form one actual clickable/tappable control. The state cue must be visually prominent enough to read as intentional interactive UI; the tested Linux reference uses an approximately 26 px state glyph beside compact control text.
 - Across phone, tablet, and desktop builds, ordinary quick-control changes must take effect immediately and the quick-control surface must **dismiss itself after the user's completed action**. An X/close affordance may exist as a fallback but must not be required to finish normal source selection or Mirroring ON/OFF changes.
 - Closing or dismissing quick controls must never be treated as turning Track Mirror off; mirroring state changes only through an explicit **Mirroring ON / Mirroring OFF** control.
-- The approved Spicetify control shown and accepted on October 23, 2026 is the current visual/interaction reference to carry forward across platforms where native conventions permit.
+- The approved Spicetify control shown, tested, corrected, and accepted on October 23, 2026 is the current visual/interaction reference to carry forward across platforms where native conventions permit.
 
 See `docs/PRODUCT_REQUIREMENTS.md` for mandatory cross-platform product requirements and `docs/UI_REFERENCE.md` for the approved visual/interaction reference.
 
@@ -57,7 +59,7 @@ This extension probes only the local DOM around already identified Listening Act
 
 This extension provides a user-controlled friend selector plus mirroring ON/OFF control. Enabling mirroring treats the selected friend's currently displayed URI as a baseline, so Track Mirror does not immediately play potentially stale activity. When that selected friend's URI changes, the extension instructs the follower's own Spotify client to play the newly observed exact URI.
 
-The legacy proof-of-concept controls no longer use a permanent floating overlay. A Spicetify top-bar control visibly shows **Track Mirror** and opens a React-backed modal containing friend selection, a large explicit **Mirroring ON / Mirroring OFF** control, and status. Friend selection and ON/OFF changes take effect immediately and automatically dismiss the quick-control modal after the action, while simply closing the modal never changes mirroring state. This implementation is the current approved visual/interaction reference for future platform builds.
+The legacy proof-of-concept controls no longer use a permanent floating overlay. The approved Spicetify top-bar control is one actual clickable element that shows **▷ Track Mirror** when mirroring is OFF and **⇄ Track Mirror** when mirroring is ON. The state glyph is deliberately prominent (approximately 26 px in the tested implementation) while the `Track Mirror` text remains compact and readable. Clicking the control opens a React-backed modal containing friend selection, a large explicit **Mirroring ON / Mirroring OFF** control, and status. Friend selection and ON/OFF changes take effect immediately; completed interactions automatically dismiss the quick-control modal, while simply closing the modal never changes mirroring state. This implementation is the current approved visual/interaction reference for future platform builds.
 
 ### First successful live end-to-end test
 
@@ -158,7 +160,7 @@ The shared `ui/` now supports:
 
 This allows the intended device test to prove the complete path: first event establishes a baseline; a changed second URI produces `MirrorAction::PlayTrack`; the native adapter asks the follower's own Spotify app to play it.
 
-Future shared UI work must follow `docs/PRODUCT_REQUIREMENTS.md` and the approved reference in `docs/UI_REFERENCE.md`, including visible Track Mirror identity, non-obstructive controls, explicit Mirroring ON/OFF state, immediate application of changes, and self-dismissal of completed quick-control interactions.
+Future shared UI work must follow `docs/PRODUCT_REQUIREMENTS.md` and the approved reference in `docs/UI_REFERENCE.md`, including the stateful **▷ Track Mirror / ⇄ Track Mirror** primary-control meaning (or native equivalent), a single glyph+label click/tap target, visible Track Mirror identity, non-obstructive controls, explicit Mirroring ON/OFF wording, immediate application of changes, and self-dismissal of completed quick-control interactions.
 
 ## Build/CI status
 
@@ -215,9 +217,10 @@ The proof-of-concept UI is also the current reference implementation for the cro
 15. The current Spicetify Linux build is a working proof of concept and temporary usable implementation, not the permanent Linux architecture.
 16. Keep the legacy proof of concept available until the replacement Linux build is validated and approved for cutover.
 17. The primary Track Mirror app/control surface must visibly identify itself as **Track Mirror** without requiring hover or prior interaction.
-18. Source selection and Mirroring ON/OFF quick actions must apply immediately and should automatically dismiss their transient control surface after completion across phone, tablet, and desktop builds.
-19. Closing/dismissing a quick-control surface is never equivalent to disabling Track Mirror; only the explicit Mirroring ON/OFF control changes mirroring state.
-20. `docs/UI_REFERENCE.md` is the canonical cross-platform visual/interaction reference, derived from the approved working Spicetify control implementation.
+18. The approved primary state cue is **▷ Track Mirror** for OFF and **⇄ Track Mirror** for ON, or a native equivalent preserving the same meaning; glyph/icon and label must be one clickable/tappable control and the state cue must be visually prominent.
+19. Source selection and Mirroring ON/OFF quick actions must apply immediately and should automatically dismiss their transient control surface after completion across phone, tablet, and desktop builds.
+20. Closing/dismissing a quick-control surface is never equivalent to disabling Track Mirror; only the explicit Mirroring ON/OFF control changes mirroring state.
+21. `docs/UI_REFERENCE.md` is the canonical cross-platform visual/interaction reference, derived from the approved working Spicetify control implementation.
 
 ## Open technical questions
 
@@ -244,7 +247,7 @@ Preliminary review only. The project is intentionally designed around metadata/s
 ## Next implementation milestone
 
 1. Keep the legacy Spicetify proof of concept usable while replacement development continues.
-2. Treat the approved UI reference and self-dismissing quick-control behavior as acceptance criteria for every new platform UI.
+2. Treat the approved stateful **▷ Track Mirror / ⇄ Track Mirror** control, single glyph+label click/tap target, prominent state cue, and self-dismissing quick-control behavior as acceptance criteria for every new platform UI.
 3. Obtain/register Track Mirror's Spotify developer application identity and callback configuration without introducing a client secret into the app.
 4. Generate/build the Tauri Android project, fetch Spotify Android App Remote through the repository script, and compile the Kotlin plugin.
 5. Run the first physical Android-device test: configure Spotify, authorize, arm, baseline one URI, inject a changed second URI, and confirm the follower's Spotify app plays it.
