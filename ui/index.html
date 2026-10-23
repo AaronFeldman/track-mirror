@@ -16,7 +16,7 @@
 
     <section class="card">
       <h2>Legacy mobile Spotify App Remote adapter</h2>
-      <p>Development/reference path only while the Android MediaSession route is tested. The Spotify client ID is public application configuration, not a client secret.</p>
+      <p>Development/reference path only while commercial-safe Android playback routes are tested. The Spotify client ID is public application configuration, not a client secret.</p>
       <div class="row">
         <label for="spotify-client-id">Spotify client ID</label>
         <input id="spotify-client-id" autocomplete="off" placeholder="Paste Track Mirror Spotify client ID" />
@@ -34,8 +34,8 @@
     </section>
 
     <section class="card">
-      <h2>Android MediaSession spike</h2>
-      <p>This experiment does not use Spotify App Remote or Spotify Web API playback commands. Start Spotify and play any track first, enable Track Mirror's Android media-control access, then test an exact <code>spotify:track:</code> URI.</p>
+      <h2>Android exact-track playback spike</h2>
+      <p>These experiments do not change the normal Track Mirror playback route. Start Spotify and play any track first, enable Track Mirror's Android media-control access, then use a different exact <code>spotify:track:</code> URI. After every experiment, press <strong>Check Spotify session</strong>; success requires <code>mediaId</code> to equal the requested URI.</p>
       <div class="row actions">
         <button id="media-session-access">Enable media-control access</button>
         <button id="media-session-status" class="secondary">Check Spotify session</button>
@@ -45,10 +45,15 @@
         <input id="media-session-track-uri" autocomplete="off" placeholder="spotify:track:..." />
       </div>
       <div class="row actions">
-        <button id="media-session-play">Test exact-track play</button>
+        <button id="media-session-play">Test MediaSession URI</button>
+        <button id="media-session-search" class="secondary">Test URI as search query</button>
+      </div>
+      <div class="row actions">
+        <button id="spotify-track-link" class="secondary">Test Spotify deep link</button>
         <button id="media-session-pause" class="secondary">Test pause</button>
       </div>
-      <pre id="media-session-output">MediaSession spike not tested yet.</pre>
+      <p>The deep-link test may bring Spotify to the foreground; that is part of what the experiment is measuring. Dispatching any command is not counted as success until Spotify reports the requested exact <code>mediaId</code>.</p>
+      <pre id="media-session-output">Android exact-track spike not tested yet.</pre>
     </section>
 
     <section class="card">
@@ -67,7 +72,7 @@
 
     <section class="card">
       <h2>Development event tester</h2>
-      <p>The first event after arming is only a baseline. Change the URI and send a second event to produce a real <code>play_track</code> action. The normal mobile path remains unchanged on this spike branch until MediaSession behavior is proven.</p>
+      <p>The first event after arming is only a baseline. Change the URI and send a second event to produce a real <code>play_track</code> action. The normal mobile path remains unchanged on this spike branch until a replacement playback route is proven and deliberately selected.</p>
       <div class="row">
         <label for="track-uri">Spotify track URI</label>
         <input id="track-uri" value="spotify:track:test-track-1" autocomplete="off" />
