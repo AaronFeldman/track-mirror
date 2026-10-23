@@ -165,9 +165,8 @@
             {
               value: selectedFriend,
               onChange: (event) => {
-                const mirroringWasEnabled = enabled;
                 setSelectedFriend(event.target.value);
-                if (mirroringWasEnabled) dismissControlModal();
+                dismissControlModal();
               },
               style: {
                 width: "100%",
@@ -228,7 +227,7 @@
               opacity: 0.62,
             },
           },
-          "Changes take effect immediately. This panel closes automatically after your action. Closing it never turns Track Mirror off.",
+          "Changes take effect immediately and this panel closes automatically. Closing the panel never turns Track Mirror off.",
         ),
       );
     }
