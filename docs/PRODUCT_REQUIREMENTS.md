@@ -36,16 +36,17 @@ This requirement exists so the user can immediately recognize what the control b
 
 This is a mandatory cross-platform interaction requirement.
 
-Track Mirror quick-control dialogs, popovers, and sheets must not require the user to press an **X**, Close, Save, Apply, or equivalent merely to finish an ordinary source-selection or mirroring-state change.
+Track Mirror quick-control dialogs, popovers, and sheets must not require the user to press an **X**, Close, Save, Apply, or equivalent merely to finish an ordinary source-selection or mirroring-state workflow.
 
-Changes take effect immediately, and the quick-control surface should dismiss itself after the user's completed action whenever the platform allows this cleanly.
+Changes take effect immediately, and the quick-control surface should dismiss itself when the user's intended interaction is complete.
 
 The interface must make a strong distinction between **closing the controls** and **turning Track Mirror off**:
 
 - closing or dismissing a dialog does not disable mirroring;
 - mirroring changes state only through the explicit **Mirroring ON / Mirroring OFF** control;
-- selecting a new friend/source takes effect immediately and completes the quick-control interaction;
-- selecting a friend/source should therefore dismiss the quick-control surface automatically after a brief confirmation interval;
+- selecting a new friend/source takes effect immediately;
+- if mirroring is already ON, choosing a new friend/source completes the interaction and should dismiss the quick-control surface automatically after a brief confirmation interval;
+- if mirroring is OFF, choosing a friend/source may leave the quick-control surface open so the user can turn mirroring ON without reopening Track Mirror;
 - pressing the explicit **Mirroring ON / Mirroring OFF** control completes the interaction and should dismiss the quick-control surface automatically;
 - a short delay may be used so the user can perceive the resulting state before dismissal;
 - a visible close control may remain as a fallback, but it must not be required in the ordinary workflow;
