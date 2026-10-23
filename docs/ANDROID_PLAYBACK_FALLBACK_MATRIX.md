@@ -20,7 +20,8 @@ Any route selected for the product still requires repository-owner approval and 
 - Spotify publishes current track identity as `spotify:track:<id>` in recent physical-device observations.
 - Spotify MediaSession ordinary transport controls — play, pause, next, previous and seek — work in independent physical-device observations.
 - Spotify advertises play-from-URI and play-from-search on at least some recent sessions.
-- Spotify officially documents Android content linking through `ACTION_VIEW`; opening Spotify content brings Spotify to the foreground.
+- Spotify officially documents Android content linking through `ACTION_VIEW`; opening Spotify content brings Spotify to the foreground with the selected content.
+- Spotify documents a Spotify URI as the resource identifier for a track/album/artist and documents Spotify URLs as client-navigation links.
 
 ### Material negative evidence
 
@@ -33,6 +34,18 @@ Any route selected for the product still requires repository-owner approval and 
 - Spotify's official Android content-linking documentation says direct content linking brings Spotify to the foreground.
 - Android restricts background activity starts, with restrictions tightened in recent releases. Therefore a deep-link selection route may be reliable only when Track Mirror is user-visible or another background-start exemption legitimately applies.
 
+### Issue-and-verify fallback evidence
+
+Svartifoss implements a general Android streaming-player ladder that is directly relevant to Track Mirror's test design:
+
+1. if the target app already exposes an active session, issue `playFromUri` and then verify that playback identity actually changed;
+2. if that is swallowed, try the target app's media-browser route;
+3. if the browser route cannot serve the request, fall back to a visible deep-link open and then retry transport commands while the new session/content warms up.
+
+Its current notes explicitly say that trusting an advertised `ACTION_PLAY_FROM_URI` bit can produce false success, so the command must be followed by identity verification. The same project reports that Spotify generally rejects unknown MediaBrowser clients and that name-based `playFromSearch` is the outside command it has observed Spotify honoring. For precise track/album/playlist entities, however, it keeps the URI authoritative instead of silently substituting search.
+
+This does not establish that `playFromSearch("spotify:track:<id>")` is exact; that remains a Track Mirror hypothesis. It does independently support the architecture principle that every external playback command must be verified from the resulting media session before Track Mirror calls it successful.
+
 ## Candidate routes
 
 | Route | Exact identity | Background-friendly | Developer playback API | Current evidence | Test priority |
@@ -40,14 +53,27 @@ Any route selected for the product still requires repository-owner approval and 
 | MediaSession `playFromUri(spotify:track:...)` | Yes | Yes | No | Spotify advertises it; independent real test failed | Reproduce once on Track Mirror physical device, then demote if failure repeats |
 | MediaSession `prepareFromUri` then `play` | Yes | Yes | No | Independent real test failed to load target | Low after one Track Mirror reproduction |
 | MediaSession `playFromSearch(spotify:track:<id>)` | Potentially yes if Spotify parses URI query | Yes | No | **Unverified hypothesis** | High experimental value |
-| MediaSession `playFromSearch(title + artist)` | Best-match, not guaranteed exact | Yes | No | Spotify advertises search; generic Android contract supports it | High fallback experiment, but identity risk |
+| MediaSession `playFromSearch(title + artist)` | Best-match, not guaranteed exact | Yes | No | Spotify advertises search; Svartifoss reports Spotify honors outside name-based search | High fallback experiment, but identity risk |
 | Structured `playFromSearch` with title/artist extras | Best-match, not guaranteed exact | Yes | No | Standard Assistant/media pattern | High fallback experiment |
 | Spotify `ACTION_VIEW` exact track deep link | Yes | No / constrained | No | Official linking surface; independent project measured track links restarting playback | High foreground test; background viability must be tested separately |
-| Exact deep link then MediaSession transport | Yes for selection if link succeeds | Selection step constrained | No | Components individually supported | High hybrid experiment |
-| MediaBrowser service | Potentially | Yes | No | MiniSpot reports Spotify refuses browser connection | Low for ordinary phone Spotify |
+| Exact deep link then MediaSession transport | Yes for selection if link succeeds | Selection step constrained | No | Components individually supported; Svartifoss uses a similar visible-open + session-nudge fallback | High hybrid experiment |
+| MediaBrowser service | Potentially | Yes | No | MiniSpot and Svartifoss report Spotify generally refuses unknown browser clients | Low for ordinary phone Spotify |
 | Skip-to-queue-item | Exact only for an item already in queue | Yes | No | Spotify exposes queue in independent observations | Not a general arbitrary-track solution |
 | Spotify App Remote | Yes | Yes after authorization | **Yes** | Existing Track Mirror reference adapter | Technically strong, commercial-policy concern remains |
 | Spotify Web API playback | Yes | Yes | **Yes** | Official developer interface | Technically strong, commercial/policy/account constraints remain |
+
+## Verification rule
+
+No experimental route succeeds merely because:
+
+- the Android call returns without throwing;
+- Spotify advertises the corresponding action bit;
+- Spotify starts playing something; or
+- Spotify is brought to the foreground.
+
+For exact-track selection, success requires the post-command Spotify MediaSession identity — preferably `MediaMetadata.METADATA_KEY_MEDIA_ID` — to become the requested exact `spotify:track:<id>` within a bounded confirmation window.
+
+This rule is consistent with the independent RunState and Svartifoss approaches and should govern every Track Mirror playback experiment.
 
 ## Recommended physical-device experiment order
 
@@ -76,7 +102,7 @@ Try, in order:
 
 For every test, success requires the resulting Spotify `MEDIA_ID` to equal the intended exact track URI. Merely hearing a similarly named song is not sufficient.
 
-The exact-URI-as-search-query variant is deliberately experimental. Spotify documents Spotify URIs as resource identifiers and historically supports URI navigation/search in some clients, but no evidence currently establishes that the ordinary Android MediaSession search callback interprets such a query as an exact URI.
+The exact-URI-as-search-query variant is deliberately experimental. Spotify documents Spotify URIs as resource identifiers and supports navigating to them in Spotify clients, but no evidence currently establishes that the ordinary Android MediaSession search callback interprets such a query as an exact URI.
 
 ### 3. Test exact-track deep linking
 
@@ -86,6 +112,8 @@ From a visible Track Mirror activity:
 2. verify the resulting MediaSession `MEDIA_ID` and playback state;
 3. compare `spotify:track:` and `https://open.spotify.com/track/...` forms;
 4. determine whether playback starts, restarts, or merely navigates for the current Spotify build/account.
+
+Spotify's current Android content-linking documentation explicitly says content navigation brings Spotify to the foreground, so a visible task switch is expected behavior rather than an implementation accident.
 
 If successful, separately test the UX and Android lifecycle cases:
 
@@ -109,6 +137,8 @@ If a deep link reliably selects the exact recording, use MediaSession only after
 
 This preserves exact identity while keeping ongoing control on the standard OS media surface. Its main unresolved cost is whether each new-track selection causes a visible Spotify task switch or is blocked from Track Mirror's background state.
 
+A possible refinement, modeled on Svartifoss's issue-and-verify ladder, is to retry normal transport only after the deep link has caused Spotify's session/metadata to reflect the target. That should be tested rather than assumed.
+
 ## Reverse-engineering targets
 
 The repository-owner-approved REA → JADX → Ghidra investigation should now prioritize questions that can eliminate runtime guesswork:
@@ -120,6 +150,7 @@ The repository-owner-approved REA → JADX → Ghidra investigation should now p
 5. feature/account/session gates that differ between MediaSession URI requests and deep-link requests.
 6. whether ordinary phone and automotive MediaSession paths are materially different.
 7. whether a deep-link request can reach playback without requiring a visible Spotify activity transition.
+8. whether Spotify's session advertises a capability based on a shared framework layer even when the phone product path later ignores/rejects it.
 
 Static findings must be treated as hypotheses until runtime confirmation. Spotify binaries, decompiled output and copied implementation code remain outside the Track Mirror repository.
 
@@ -138,6 +169,7 @@ Independent public projects:
 - `Manley-codes/RunState` — controlled real-session URI-loading attempt and verification logic.
 - `anriudh/spotify-duo` — measured track-link playback/restart behavior and targeted `ACTION_VIEW` handoff.
 - `virrrresque/minispot` — working lightweight remote; documents Spotify media-browser refusal and notification-listener session control.
+- `gabrielluizone/Svartifoss` — issue-and-verify playback ladder, swallowed-command handling, Spotify browser-client limitation and name-search fallback observations.
 - `romanchukg-cloud/spotify-android-head-units` — automotive backend comparison only; not treated as proof for ordinary phone Spotify.
 
 ## Current engineering conclusion
@@ -154,8 +186,12 @@ Exact-track deep link
   cost: foreground/background-activity behavior
 
 playFromSearch
-  promising invisible fallback
-  cost: exact-identity guarantee still unproven
+  evidence of name-based Spotify playback from outside
+  exact-identity guarantee still unproven
+
+Verification
+  command acceptance never counts
+  resulting Spotify MEDIA_ID is the authority
 ```
 
 No fallback is yet promoted to Track Mirror's canonical Android playback architecture.
