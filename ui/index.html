@@ -11,8 +11,27 @@
     <header>
       <p class="eyebrow">TRACK MIRROR</p>
       <h1>Rust-first cross-platform shell</h1>
-      <p class="lede">The UI is intentionally thin. Mirroring decisions live in the shared Rust core; Spotify control will be supplied by platform adapters.</p>
+      <p class="lede">Mirroring decisions live in the shared Rust core. Android and iOS hand only actionable playback commands to Spotify's native App Remote SDK.</p>
     </header>
+
+    <section class="card">
+      <h2>Mobile Spotify adapter</h2>
+      <p>Android/iOS development setup. The Spotify client ID is public application configuration, not a client secret.</p>
+      <div class="row">
+        <label for="spotify-client-id">Spotify client ID</label>
+        <input id="spotify-client-id" autocomplete="off" placeholder="Paste Track Mirror Spotify client ID" />
+      </div>
+      <div class="row">
+        <label for="spotify-redirect-uri">Redirect URI</label>
+        <input id="spotify-redirect-uri" value="trackmirror://spotify-callback" readonly />
+      </div>
+      <div class="row actions">
+        <button id="configure-spotify">Configure Spotify</button>
+        <button id="connect-spotify" class="secondary">Connect</button>
+        <button id="disconnect-spotify" class="secondary">Disconnect</button>
+      </div>
+      <pre id="spotify-status">Spotify adapter not configured.</pre>
+    </section>
 
     <section class="card">
       <h2>Source listener</h2>
@@ -30,13 +49,13 @@
 
     <section class="card">
       <h2>Development event tester</h2>
-      <p>This exercises the shared Rust engine only. It does not control Spotify yet.</p>
+      <p>The first event after arming is only a baseline. Change the URI and send a second event to produce a real <code>play_track</code> action. On Android/iOS that action is now forwarded to Spotify.</p>
       <div class="row">
         <label for="track-uri">Spotify track URI</label>
         <input id="track-uri" value="spotify:track:test-track-1" autocomplete="off" />
       </div>
       <label class="check"><input id="is-playing" type="checkbox" checked /> Source is playing</label>
-      <button id="send-event">Process test event</button>
+      <button id="send-event">Process and apply test event</button>
       <pre id="action">No event processed yet.</pre>
     </section>
   </main>
