@@ -5,7 +5,8 @@ use tauri::{
 };
 
 use crate::{
-    AuthorizationCallbackRequest, ConfigureRequest, PlayTrackRequest, PlaybackResponse, Result,
+    AndroidMediaSessionResponse, AuthorizationCallbackRequest, ConfigureRequest, PlayTrackRequest,
+    PlaybackResponse, Result,
 };
 
 #[cfg(target_os = "android")]
@@ -73,6 +74,40 @@ impl<R: Runtime> SpotifyPlayback<R> {
                 "handleAuthorizationCallback",
                 AuthorizationCallbackRequest { url },
             )
+            .map_err(Into::into)
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn open_media_control_access_settings(&self) -> Result<AndroidMediaSessionResponse> {
+        self.0
+            .run_mobile_plugin("openMediaControlAccessSettings", ())
+            .map_err(Into::into)
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn media_session_status(&self) -> Result<AndroidMediaSessionResponse> {
+        self.0
+            .run_mobile_plugin("mediaSessionStatus", ())
+            .map_err(Into::into)
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn play_track_via_media_session(
+        &self,
+        track_uri: String,
+    ) -> Result<AndroidMediaSessionResponse> {
+        self.0
+            .run_mobile_plugin(
+                "playTrackViaMediaSession",
+                PlayTrackRequest { track_uri },
+            )
+            .map_err(Into::into)
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn pause_via_media_session(&self) -> Result<AndroidMediaSessionResponse> {
+        self.0
+            .run_mobile_plugin("pauseViaMediaSession", ())
             .map_err(Into::into)
     }
 }
