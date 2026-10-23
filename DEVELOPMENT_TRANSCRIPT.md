@@ -99,11 +99,25 @@ Resulting product decisions:
 - The revised extension was syntax-checked with `node --check` before repository update.
 - `docs/PRODUCT_REQUIREMENTS.md` now records these requirements independently of any one platform or toolkit.
 
+## 2026-10-23 — Proof-of-concept UI update ready for use
+
+The contained Spicetify UI work was reviewed as a branch-only change before integration. The branch changed only:
+
+- `spicetify/track-mirror-playback.js`;
+- `PROJECT_STATE.md`;
+- `DEVELOPMENT_TRANSCRIPT.md`;
+- `docs/PRODUCT_REQUIREMENTS.md`.
+
+No Rust/Tauri desktop-adapter code was mixed into this legacy proof-of-concept update.
+
+The code uses current documented Spicetify extension patterns: `Spicetify.Topbar.Button`, `Spicetify.PopupModal.display`, and `Spicetify.React` for modal content. The new UI removes the permanent fixed overlay, keeps the existing mirroring behavior, and moves quick controls behind an on-demand top-bar entry.
+
+Repository integration does not by itself update the already-installed local Spicetify extension. The local proof-of-concept installation must still be refreshed from the repository and `spicetify apply` run before the new control layout is visible in Spotify.
+
 ## Current handoff point
 
-At the time this transcript was created and then supplemented with the recovered phone-session and proof-of-concept decisions:
-
-- `main` remains the canonical branch until the contained Spicetify proof-of-concept UI update is deliberately fast-forwarded after review.
-- PR #1 (`desktop-native-playback`) contains separate unmerged desktop-adapter work.
-- The legacy Spicetify proof-of-concept UI update lives on `spicetify-nonobstructive-controls` and is intentionally separate from the Rust/Tauri desktop work.
-- Android/iOS Rust-to-native Spotify bridge work remains on `main` as described in `PROJECT_STATE.md`.
+- The legacy Spicetify build is the working proof of concept / temporary usable Linux version.
+- The proof-of-concept UI is ready in the repository with non-obstructive top-bar/modal controls.
+- PR #1 (`desktop-native-playback`) remains separate unmerged Rust/Tauri desktop work.
+- Android/iOS Rust-to-native Spotify bridge work remains part of the shared next-generation architecture.
+- The new Linux Rust/Tauri build is to be developed in parallel and eventually replace the proof of concept only after validation and repository-owner approval.
