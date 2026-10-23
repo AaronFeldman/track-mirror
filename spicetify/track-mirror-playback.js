@@ -75,33 +75,66 @@
     const element = topbarButton?.element;
     if (!element) return;
 
-    Object.assign(element.style, {
+    const button = element.matches?.("button, [role='button']")
+      ? element
+      : element.querySelector("button, [role='button']") || element;
+
+    Object.assign(button.style, {
       width: "auto",
       minWidth: "max-content",
       display: "inline-flex",
       alignItems: "center",
-      gap: "6px",
+      justifyContent: "center",
+      gap: "8px",
       paddingInline: "10px",
       whiteSpace: "nowrap",
+      cursor: "pointer",
     });
 
-    const builtInIcon = element.querySelector("svg");
+    const builtInIcon = button.querySelector("svg");
     if (builtInIcon) builtInIcon.style.display = "none";
 
-    let label = element.querySelector(`.${TOPBAR_TEXT_CLASS}`);
+    element.querySelectorAll(`.${TOPBAR_TEXT_CLASS}`).forEach((candidate) => {
+      if (!button.contains(candidate)) candidate.remove();
+    });
+
+    let label = button.querySelector(`.${TOPBAR_TEXT_CLASS}`);
     if (!label) {
       label = document.createElement("span");
       label.className = TOPBAR_TEXT_CLASS;
       Object.assign(label.style, {
-        fontSize: "12px",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "7px",
         fontWeight: "700",
         lineHeight: "1",
         pointerEvents: "none",
+        whiteSpace: "nowrap",
       });
-      element.appendChild(label);
+      button.appendChild(label);
     }
 
-    label.textContent = enabled ? "⇄ Track Mirror" : "▷ Track Mirror";
+    label.replaceChildren();
+
+    const symbol = document.createElement("span");
+    symbol.textContent = enabled ? "⇄" : "▷";
+    Object.assign(symbol.style, {
+      display: "inline-block",
+      fontSize: "26px",
+      fontWeight: "800",
+      lineHeight: "0.8",
+      transform: "translateY(-1px)",
+    });
+
+    const text = document.createElement("span");
+    text.textContent = "Track Mirror";
+    Object.assign(text.style, {
+      fontSize: "13px",
+      fontWeight: "700",
+      lineHeight: "1",
+    });
+
+    label.append(symbol, text);
   }
 
   function updateTopbarButton() {
