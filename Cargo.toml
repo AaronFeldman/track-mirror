@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/track-mirror-core",
+    "plugins/spotify-playback",
     "src-tauri",
 ]
 resolver = "2"
