@@ -16,44 +16,46 @@ Track Mirror is a Spotify companion project for mirroring track identity and pla
 
 The Linux desktop prototype is functionally validated in the current Spotify/Spicetify environment.
 
-The current working desktop path is:
-
-1. detect a friend's Spotify Listening Activity without OCR;
-2. extract the displayed track and artist;
-3. recover the exact embedded Spotify track URI from the client DOM;
-4. let the user select which visible friend to mirror;
-5. arm mirroring without immediately playing stale activity;
-6. on that friend's next track change, play the corresponding URI in the follower's own Spotify client.
-
-The first successful end-to-end live mirroring test was completed on October 22, 2026.
+The working desktop path detects a selected friend's Spotify Listening Activity without OCR, recovers the exact embedded `spotify:track:` URI, baselines the currently displayed track when mirroring is armed, and tells the follower's own Spotify client to play the next changed URI. The first successful live end-to-end mirroring test was completed on October 22, 2026.
 
 ## Rust-first cross-platform foundation
 
 As of October 23, 2026, the next-generation Track Mirror application is being built around a framework-independent Rust core with Tauri 2 as the initial cross-platform shell.
 
-The intended boundary is:
+The current boundary is:
 
 - `crates/track-mirror-core/` — canonical portable mirror-event model and mirroring decision engine; no Tauri, Spotify SDK, WebView, Kotlin, Swift, or operating-system dependency.
-- `src-tauri/` — thin Tauri command/application shell.
+- `plugins/spotify-playback/` — thin Tauri mobile bridge to native Spotify App Remote code.
+- `src-tauri/` — thin Tauri command/application shell and action dispatcher.
 - `ui/` — shared thin UI.
-- `android/`, `ios/`, desktop integrations, and `spicetify/` — platform-specific adapters around the core.
+- `spicetify/` and future desktop integrations — platform-specific source/playback adapters around the core.
 
 The Tauri shell is deliberately replaceable. If the application framework changes later, the Rust core should remain usable without rewriting Track Mirror's synchronization/state logic. See `docs/RUST_FIRST_ARCHITECTURE.md`.
 
-The first Rust engine already preserves proven desktop semantics: arming establishes a baseline instead of immediately playing stale activity, the next changed exact Spotify track URI becomes a play action, events from other listeners are ignored, and duplicate/out-of-order sequence values do not restart playback.
+The Rust engine preserves the proven desktop semantics: arming establishes a baseline instead of immediately playing stale activity, the next changed exact Spotify track URI becomes a play action, events from other listeners are ignored, and duplicate/out-of-order sequence values do not restart playback.
 
-## Mobile development
+## Android and iOS/iPadOS bridge
 
-Android and iOS/iPadOS remain first-class next-phase targets, now under the shared Rust-first architecture rather than as separate implementations of Track Mirror's product logic.
+Android and iOS/iPadOS now share the same Rust mirroring decisions rather than implementing Track Mirror separately.
 
-Spotify's supported mobile App Remote SDKs can control the installed Spotify app and play an exact Spotify URI, but Spotify's public developer interfaces do not currently expose another arbitrary friend's live Listening Activity. Native Kotlin/Swift code therefore remains useful as thin follower/playback adapters while source observation and mirroring policy stay separate.
+The current mobile execution path is:
 
-Existing mobile foundation:
+```text
+MirrorEvent
+  -> Rust MirrorEngine
+  -> MirrorAction
+  -> Tauri Rust plugin
+  -> Kotlin or Swift
+  -> follower's Spotify app
+```
 
-- `docs/MOBILE_ARCHITECTURE.md` — mobile architecture and staged implementation notes.
-- `mobile/PROTOCOL.md` — normalized mirror-event format.
-- `android/` — Android Spotify adapter experiments.
-- `ios/` — iOS/iPadOS Spotify adapter experiments.
+Only actionable `PlayTrack` and `Pause` decisions cross into native code. `Ignored` and `Baseline` remain inside Rust and do not call Spotify.
+
+Android uses Spotify Android App Remote. The official Spotify AAR is not committed into the Track Mirror repository; `scripts/fetch-spotify-android-app-remote.sh` retrieves it into an ignored local path for Android builds.
+
+iOS/iPadOS uses Spotify iOS App Remote and the `trackmirror://spotify-callback` authorization return scheme. The Swift adapter handles Spotify's app-switch/authorization mechanics while the Rust core remains platform-neutral.
+
+The native mobile code is implemented but **not yet real-device validated**. Current GitHub Actions tests the Rust core and compile-checks the Rust/Tauri bridge on Linux; Android Kotlin and iOS Swift compilation/device playback are the next validation milestones.
 
 ## Linux desktop launcher
 
@@ -69,30 +71,34 @@ This installs a per-user application entry named **Track Mirror** under `~/.loca
 
 ## Rust development
 
-The repository root is now a Cargo workspace. The framework-independent core can be tested with:
+The repository root is a Cargo workspace. The framework-independent core can be tested with:
 
 ```bash
 cargo test -p track-mirror-core
 ```
 
-GitHub Actions also runs the Rust core tests for relevant pushes and pull requests.
+The Tauri/Rust bridge can be compile-checked with:
 
-The initial Tauri shell uses static web assets intentionally, avoiding an additional frontend framework until the Rust/core boundaries are proven.
+```bash
+cargo check -p track-mirror-app
+```
+
+GitHub Actions runs these checks for relevant pushes and pull requests. The initial Tauri shell uses static web assets intentionally, avoiding an additional frontend framework until the Rust/core boundaries are proven.
 
 ## Repository guide
 
 - `PROJECT_STATE.md` — canonical current project state.
 - `docs/DEVELOPMENT_HISTORY.md` — development and authorship/provenance record.
-- `docs/RUST_FIRST_ARCHITECTURE.md` — Rust-core / replaceable-shell architecture decision.
+- `docs/RUST_FIRST_ARCHITECTURE.md` — Rust-core / replaceable-shell architecture decision and adapter boundary.
 - `docs/INSTALL_AND_RECOVERY.md` — installation, rollback, and desktop-launcher behavior.
-- `docs/ARCHITECTURE.md` — overall architecture direction.
+- `docs/ARCHITECTURE.md` — earlier overall architecture direction.
 - `docs/MOBILE_ARCHITECTURE.md` — Android/iOS architecture notes.
 - `mobile/PROTOCOL.md` — normalized mirror-event protocol.
 - `crates/track-mirror-core/` — portable Rust core.
+- `plugins/spotify-playback/` — shared Rust/native mobile playback bridge.
 - `src-tauri/` — Tauri application bridge.
 - `ui/` — shared application shell UI.
-- `android/` — Android adapter work.
-- `ios/` — iOS/iPadOS adapter work.
+- `android/`, `ios/` — earlier adapter experiments/history.
 - `spicetify/` — proven desktop discovery, URI, and playback adapters.
 
-Track Mirror does not distribute Spotify binaries. The user supplies their own Spotify installation and Track Mirror integrates with that installation separately.
+Track Mirror does not distribute Spotify binaries. The user supplies their own Spotify installation and Track Mirror integrates with that installation separately. Third-party Spotify SDK binaries and frameworks retain their own provenance and licensing.
