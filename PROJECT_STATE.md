@@ -11,23 +11,29 @@ Track Mirror is a Spotify companion application that mirrors track identity and 
 - Follow a selected friend's listening activity closely enough that the follower's own Spotify client can play the corresponding tracks.
 - Prefer the term **mirroring** rather than rebroadcasting.
 - Move away from OCR/screen scraping where practical.
-- Use the existing Spicetify integration as the proven desktop Listening Activity source/reference adapter.
+- Preserve the existing Spicetify implementation as a **working proof of concept and temporary usable Linux version** while the new Linux Rust/Tauri implementation is developed. Spicetify is not the permanent Linux architecture.
+- Use the proven Spicetify Listening Activity/URI work as a reference/source adapter where useful without making the replacement Linux product depend permanently on Spicetify.
 - Keep implementation compatible with Spotify platform rules and third-party licenses.
 - Distribute Track Mirror and its integration logic, not patched Spotify binaries.
 - Treat complete rollback/recovery as a core product requirement.
 - Keep the architecture portable across Linux, Windows 11, macOS, Android, and iOS/iPadOS.
 - Use **Rust as the canonical portable core** for Track Mirror protocol/state/synchronization/mirroring decisions.
 - Use **Tauri 2 as an initial replaceable cross-platform shell**, not as the home of product logic.
-- Keep Kotlin, Swift, Spicetify/JavaScript, and future Windows/macOS code as thin platform adapters around the Rust core.
-- Android and iOS/iPadOS are the current first device-validation targets, while Windows and macOS remain first-class architectural targets.
+- Keep Kotlin, Swift, Spicetify/JavaScript, and desktop-native code as thin platform adapters around the Rust core.
+- Android and iOS/iPadOS are the current first device-validation targets, while Linux, Windows, and macOS remain first-class architectural targets.
+- Across every build, Track Mirror controls must **not permanently obscure Spotify/app content**. Prefer normal app chrome for compact status/control, an on-demand modal/popover/sheet for quick controls, and a dedicated Track Mirror screen/window for expanded configuration and diagnostics.
+
+See `docs/PRODUCT_REQUIREMENTS.md` for the cross-platform product requirements.
 
 ## Existing proof of concept
 
-A local Linux script, `~/.local/bin/follow-amanda`, was used to watch Spotify Friend Activity and detect track changes with desktop automation plus OCR. The proof of concept established that the core follow/mirror experience is useful, but OCR is transitional rather than the target architecture.
+The earliest local Linux proof of concept used `~/.local/bin/follow-amanda` to watch Spotify Friend Activity with desktop automation plus OCR. That established that the core follow/mirror experience is useful, but OCR is transitional rather than the target architecture.
+
+The later Spicetify implementation became the first working non-OCR end-to-end proof of concept and is currently retained as the temporary usable Linux version while the replacement Linux Rust/Tauri build is developed.
 
 ## Validated desktop implementation
 
-The current non-OCR desktop path is working end to end.
+The current Spicetify-based non-OCR path is working end to end as the legacy proof of concept.
 
 ### Listening Activity discovery
 
@@ -46,6 +52,8 @@ This extension probes only the local DOM around already identified Listening Act
 `spicetify/track-mirror-playback.js`
 
 This extension provides a user-controlled friend selector plus mirroring ON/OFF control. Enabling mirroring treats the selected friend's currently displayed URI as a baseline, so Track Mirror does not immediately play potentially stale activity. When that selected friend's URI changes, the extension instructs the follower's own Spotify client to play the newly observed exact URI.
+
+The legacy proof-of-concept controls no longer use a permanent floating overlay. A Spicetify top-bar button opens a React-backed modal containing friend selection, mirroring ON/OFF, and status. This change implements the project-wide requirement that Track Mirror controls not permanently cover host-application content.
 
 ### First successful live end-to-end test
 
@@ -66,7 +74,7 @@ A Spotify catalog-search resolver was also explored but encountered HTTP 429 rat
 The canonical portable implementation now begins with a Cargo workspace containing:
 
 - `crates/track-mirror-core` — framework-independent Rust state and decision engine;
-- `plugins/spotify-playback` — thin Tauri mobile bridge to native Spotify App Remote adapters;
+- `plugins/spotify-playback` — thin Tauri/native playback bridge;
 - `src-tauri` — thin cross-platform application shell/command bridge;
 - `ui` — deliberately small shared UI used to exercise the Rust engine and adapters.
 
@@ -81,6 +89,8 @@ The canonical portable implementation now begins with a Cargo workspace containi
 - explicit `MirrorAction` decisions for ignore/baseline/play/pause.
 
 The first Rust core test suite has passed in GitHub Actions.
+
+The replacement Linux build is intended to use this same Rust-core / replaceable-adapter architecture as Windows, macOS, Android, and iOS rather than making the legacy Spicetify proof of concept the permanent Linux architecture.
 
 ## Rust-to-native mobile playback bridge
 
@@ -144,24 +154,33 @@ The shared `ui/` now supports:
 
 This allows the intended device test to prove the complete path: first event establishes a baseline; a changed second URI produces `MirrorAction::PlayTrack`; the native adapter asks the follower's own Spotify app to play it.
 
+Future shared UI work must follow the non-obstruction requirement in `docs/PRODUCT_REQUIREMENTS.md`.
+
 ## Build/CI status
 
 GitHub Actions verifies the framework-independent Rust core and performs a Linux `cargo check` of the Tauri/Rust bridge.
 
 The core test is green.
 
-The first bridge compile exposed an upstream compatibility break between `tauri-plugin-deep-link 2.6.2` and newer `rust-ini 0.21.x` `ParseOption` fields. Track Mirror now pins Linux resolution to `rust-ini = 0.21.1` as a narrowly documented compatibility workaround while upstream catches up. A fresh CI run is validating that fix.
+The first bridge compile exposed an upstream compatibility break between `tauri-plugin-deep-link 2.6.2` and newer `rust-ini 0.21.x` `ParseOption` fields. Track Mirror pins Linux resolution to `rust-ini = 0.21.1` as a narrowly documented compatibility workaround while upstream catches up.
 
-Current CI does **not** yet prove that the Kotlin Android project or Swift iOS project compiles against the native Spotify SDKs. Those platform builds remain the next validation step.
+Current CI does **not** yet prove that the Kotlin Android project or Swift iOS project compiles against the native Spotify SDKs. Those platform builds remain validation work.
+
+Separate unmerged desktop-native work exists on `desktop-native-playback`; it must not be confused with the legacy Spicetify proof-of-concept update.
 
 ## Earlier standalone mobile prototypes
 
 The earlier files under `android/` and `ios/` remain useful as adapter experiments/history, but they are no longer the canonical home of Track Mirror mirroring rules. Their Spotify-specific responsibilities are being folded into `plugins/spotify-playback` so all platforms consume the same Rust decisions.
 
-## Desktop launcher and rollback
+## Legacy Linux proof of concept, launcher, and rollback
 
-The existing Linux desktop launcher and safety-focused Spicetify install/rollback layer remain available:
+The existing Linux Spicetify implementation remains available for use while the replacement Linux Rust/Tauri application is developed and tested.
 
+Relevant paths include:
+
+- `spicetify/track-mirror-friend-activity.js`
+- `spicetify/track-mirror-dom-uri-probe.js`
+- `spicetify/track-mirror-playback.js`
 - `scripts/track-mirror-launch.sh`
 - `scripts/install-desktop-launcher.sh`
 - `desktop/track-mirror.desktop.in`
@@ -169,7 +188,7 @@ The existing Linux desktop launcher and safety-focused Spicetify install/rollbac
 - `scripts/restore-spotify.sh`
 - `docs/INSTALL_AND_RECOVERY.md`
 
-The ordinary Spotify installation remains separate.
+The ordinary Spotify installation remains separate. The working proof of concept should not be removed or broken merely because the replacement Linux build is under development. Cutover occurs only after the replacement is functionally reliable and the repository owner approves it.
 
 ## Key design decisions
 
@@ -181,11 +200,14 @@ The ordinary Spotify installation remains separate.
 6. Keep platform-specific discovery/playback adapters separate from portable mirroring concepts.
 7. Rust is the canonical home of portable Track Mirror product logic.
 8. Tauri is a replaceable shell/bridge, not a required dependency of `track-mirror-core`.
-9. Native Kotlin/Swift adapters execute platform calls but do not independently implement mirroring policy.
+9. Native platform adapters execute platform calls but do not independently implement mirroring policy.
 10. Do not distribute patched Spotify binaries or claim authorship of third-party Spotify SDK binaries.
 11. Every local Spotify patch/modification path must retain a rollback path.
 12. Preserve a written development/authorship record distinguishing repository-owner design decisions from AI-assisted implementation.
 13. Do not assume mobile Spotify exposes desktop Listening Activity; source observation and follower playback remain separable.
+14. Track Mirror controls must not permanently cover or obstruct host-application content on any supported platform.
+15. The current Spicetify Linux build is a working proof of concept and temporary usable implementation, not the permanent Linux architecture.
+16. Keep the legacy proof of concept available until the replacement Linux build is validated and approved for cutover.
 
 ## Open technical questions
 
@@ -197,8 +219,9 @@ The ordinary Spotify installation remains separate.
 - Timing, seek-position, pause/resume, and drift-correction behavior beyond the first track-change milestone.
 - Fallback behavior when the exact track is unavailable in the follower's market/account.
 - Authentication/consent model for following another listener.
+- New Linux Rust/Tauri source/playback adapter details and migration criteria from the Spicetify proof of concept.
 - Windows 11 and macOS source/playback adapters.
-- Whether the current desktop Listening Activity DOM remains stable across Spotify updates.
+- Whether the current desktop Listening Activity DOM remains stable across Spotify updates while the proof of concept remains in use.
 
 ## Legal / platform review status
 
@@ -210,8 +233,10 @@ Preliminary review only. The project is intentionally designed around metadata/s
 
 ## Next implementation milestone
 
-1. Obtain/register Track Mirror's Spotify developer application identity and callback configuration without introducing a client secret into the app.
-2. Generate/build the Tauri Android project, fetch Spotify Android App Remote through the repository script, and compile the Kotlin plugin.
-3. Run the first physical Android-device test: configure Spotify, authorize, arm, baseline one URI, inject a changed second URI, and confirm the follower's Spotify app plays it.
-4. On a Mac/Xcode environment, build the same Tauri/Rust core with the Swift plugin and repeat the equivalent iOS physical-device test.
-5. Only after both follower playback paths are validated, add the replaceable source-to-follower transport.
+1. Keep the legacy Spicetify proof of concept usable while replacement development continues.
+2. Obtain/register Track Mirror's Spotify developer application identity and callback configuration without introducing a client secret into the app.
+3. Generate/build the Tauri Android project, fetch Spotify Android App Remote through the repository script, and compile the Kotlin plugin.
+4. Run the first physical Android-device test: configure Spotify, authorize, arm, baseline one URI, inject a changed second URI, and confirm the follower's Spotify app plays it.
+5. Develop the replacement Linux Rust/Tauri path in parallel using the same shared architecture and the project-wide non-obstructive-control requirement.
+6. On a Mac/Xcode environment, build the same Tauri/Rust core with the Swift plugin and repeat the equivalent iOS physical-device test.
+7. Only after follower playback paths are validated, add the replaceable source-to-follower transport.
