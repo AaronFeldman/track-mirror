@@ -47,3 +47,15 @@ jobs:
             librsvg2-dev
       - name: Check Tauri shell and playback plugin Rust bridge
         run: cargo check -p track-mirror-app
+
+  desktop-platform-check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check Track Mirror desktop adapter
+        run: cargo check -p track-mirror-app

@@ -215,3 +215,50 @@ Preliminary review only. The project is intentionally designed around metadata/s
 3. Run the first physical Android-device test: configure Spotify, authorize, arm, baseline one URI, inject a changed second URI, and confirm the follower's Spotify app plays it.
 4. On a Mac/Xcode environment, build the same Tauri/Rust core with the Swift plugin and repeat the equivalent iOS physical-device test.
 5. Only after both follower playback paths are validated, add the replaceable source-to-follower transport.
+
+## Development freeze and preservation point — October 23, 2026
+
+At the repository owner's explicit instruction, Track Mirror development is stopped at this point. No further implementation, fixes, merges, test reruns, or repository changes should be made unless the repository owner later gives a new explicit instruction to resume development.
+
+### Preserved desktop work
+
+The desktop implementation work is preserved on branch `desktop-native-playback` in open, unmerged pull request **#1, “Add native desktop Spotify playback adapters.”** The implementation/CI head immediately before this preservation record was commit `33d3b3631bc3b0b56ac28850118e4c46dc2c2f42` (`Compile-check Windows and macOS desktop adapters`). The branch was created from `main` at `f2463afc2c4e9fcdeeecd15c782ae286bbfb79ca`.
+
+The preserved implementation commits made during this development session are:
+
+- `30b1ae51d569837cd88a9b8629d78cd44c2cf8fd` — added the desktop playback command error path;
+- `2d696840712b427c805055916be26dc145edd503` — implemented the native/local desktop Spotify playback adapter;
+- `d82458e2960154af1252db380e096d7dc7d40090` — routed Rust `MirrorAction` playback decisions through the desktop adapter as well as mobile;
+- `33d3b3631bc3b0b56ac28850118e4c46dc2c2f42` — added Windows and macOS CI compile-check jobs.
+
+The desktop adapter preserved on that branch currently does the following:
+
+- validates that playback targets are exact `spotify:track:` URIs;
+- on **macOS**, uses `osascript` to tell the locally installed Spotify application to play the exact track URI, and uses AppleScript to pause Spotify;
+- on **Windows**, uses `cmd /C start` with the exact Spotify track URI so the installed Spotify client handles playback;
+- on **Linux**, uses `xdg-open` with the exact Spotify track URI;
+- returns an explicit not-yet-implemented response for pause on Windows and Linux rather than reporting false success;
+- keeps baseline-on-arm, selected-listener filtering, duplicate/out-of-order suppression, and mirroring decisions in the shared Rust core rather than duplicating them in the desktop adapters;
+- changes `process_and_apply_mirror_event` so actionable `PlayTrack` and `Pause` decisions are dispatched through `spotify-playback` on desktop as well as mobile;
+- keeps the mobile-only `trackmirror://` redirect-URI validation scoped to mobile.
+
+No claim is made that the Windows or macOS desktop path is build-validated or device-validated at this freeze point.
+
+### CI/test status at the freeze point
+
+The latest observed pull-request workflow was GitHub Actions run `39951348910` for branch head `33d3b3631bc3b0b56ac28850118e4c46dc2c2f42`.
+
+At the moment development was frozen:
+
+- `core-test`: **passed**;
+- `desktop-platform-check (windows-latest)`: **failed before desktop adapter validation**, because Tauri's build step required `src-tauri/icons/icon.ico`, which is not present;
+- `desktop-platform-check (macos-latest)`: **failed before desktop adapter validation**, because `tauri::generate_context!()` required `src-tauri/icons/icon.png`, which is not present; the macOS job also emitted an unused-import warning for `tauri_plugin_deep_link::DeepLinkExt` on that target;
+- Linux `tauri-check`: **still in progress** at the freeze point, in the prerequisite-install stage, so no final result was recorded here;
+- Android Kotlin/Spotify App Remote compilation and real-device validation remain unperformed;
+- iOS Swift/Spotify App Remote compilation and physical-device validation remain unperformed.
+
+The Windows/macOS CI failures therefore establish missing Tauri packaging assets, not a successful or unsuccessful compile verdict on the new desktop adapter code itself. No fix was attempted because the repository owner ordered development to stop.
+
+### Resume point
+
+If development is later resumed, begin from this preservation record and the open `desktop-native-playback` branch/PR rather than reconstructing the work from memory. The first unresolved items are the missing Tauri desktop icon assets and completion of the platform compile checks; these are recorded only as resume context, not as authorization to continue now.
