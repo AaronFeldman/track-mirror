@@ -77,11 +77,33 @@ Substantive phone-session decisions/instructions recovered from that development
 
 These directions are repository-owner product/architecture decisions. AI assistance produced implementation code, CI changes, branch/PR organization, and explanatory prose.
 
+## 2026-10-23 — Legacy Spicetify proof-of-concept framing and UI requirement
+
+**Verbatim user directions:**
+
+> “I want to keep the old version to use until we've developed the new Linux version”
+
+> “By the way on the Linux version the controls for track mirror obscure some other parts of the UI it would be good if it didn't do that”
+
+> “Make that a requirement in all the builds going forward”
+
+> “Well use it as proof of concept”
+
+Resulting product decisions:
+
+- The existing Spicetify implementation is a working **proof of concept and temporary usable Linux version** while the new Linux Rust/Tauri implementation is developed.
+- It is not the permanent Linux architecture. The replacement Linux build should use the same Rust-core / replaceable-adapter architecture as the other platforms.
+- The working proof of concept must remain available and should not be broken merely because replacement development is underway.
+- Across every Track Mirror build, controls must not permanently cover or obstruct Spotify/app content. Normal app chrome, an on-demand modal/popover/sheet, and a dedicated settings/status screen are preferred over permanent floating overlays.
+- The legacy Spicetify control was therefore changed from a fixed overlay to a documented Spicetify top-bar button that opens a React-backed modal containing friend selection, mirroring ON/OFF, and status.
+- The revised extension was syntax-checked with `node --check` before repository update.
+- `docs/PRODUCT_REQUIREMENTS.md` now records these requirements independently of any one platform or toolkit.
+
 ## Current handoff point
 
-At the time this transcript was created and then supplemented with the recovered phone-session decisions:
+At the time this transcript was created and then supplemented with the recovered phone-session and proof-of-concept decisions:
 
-- `main` remains the canonical branch.
-- PR #1 (`desktop-native-playback`) contains unmerged desktop-adapter work.
-- The next safe step for desktop work is to add the required Tauri icon resources (or otherwise correct Tauri packaging configuration), re-run Windows/macOS CI, review the adapter behavior, and only then decide whether to merge PR #1.
+- `main` remains the canonical branch until the contained Spicetify proof-of-concept UI update is deliberately fast-forwarded after review.
+- PR #1 (`desktop-native-playback`) contains separate unmerged desktop-adapter work.
+- The legacy Spicetify proof-of-concept UI update lives on `spicetify-nonobstructive-controls` and is intentionally separate from the Rust/Tauri desktop work.
 - Android/iOS Rust-to-native Spotify bridge work remains on `main` as described in `PROJECT_STATE.md`.
