@@ -8,4 +8,8 @@ pub enum Error {
 
     #[error("Spotify playback adapter is unavailable on this platform")]
     UnsupportedPlatform,
+
+    #[cfg(desktop)]
+    #[error("Spotify desktop playback command failed: {0}")]
+    DesktopCommand(String),
 }
