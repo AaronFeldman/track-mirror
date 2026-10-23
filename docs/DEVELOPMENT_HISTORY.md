@@ -21,13 +21,13 @@ The project adopted the name **Track Mirror**.
 
 The central design language was refined to describe the feature as **mirroring** rather than rebroadcasting. The project is intended to mirror track identity and playback state, not audio streams.
 
-The user specifically chose the architecture principle that the source listener's audio is never copied or relayed. The follower receives enough state to cause their own Spotify client to play the corresponding track.
+The repository owner specifically chose the architecture principle that the source listener's audio is never copied or relayed. The follower receives enough state to cause their own Spotify client to play the corresponding track.
 
 ## Architecture transition
 
 OCR was accepted as a useful proof of concept but rejected as the preferred long-term architecture because it is fragile, screen-layout dependent, and awkward for general distribution.
 
-The next direction is direct local Spotify-client integration, with Spicetify identified as a promising avenue to investigate because it can extend the Spotify desktop client and is open source.
+The next direction became direct local Spotify-client integration, with Spicetify identified as a useful desktop integration path.
 
 ## Human-authored portability requirement
 
@@ -110,7 +110,33 @@ The first Rust-first scaffold created:
 - `docs/RUST_FIRST_ARCHITECTURE.md` to lock down the core/adapter boundary;
 - GitHub Actions to run the Rust core test suite on relevant repository changes.
 
-The implementation deliberately does not place Spotify-specific playback code in the Rust core. Platform adapters are expected to consume `MirrorAction` decisions and translate them into the appropriate Spotify/native calls.
+The implementation deliberately does not place Spotify-specific playback code in the Rust core. Platform adapters consume `MirrorAction` decisions and translate them into the appropriate Spotify/native calls.
+
+## First Rust-to-native mobile playback bridge
+
+On October 23, 2026, development moved from separate mobile adapter prototypes to a common Tauri mobile plugin boundary driven by the Rust mirror engine.
+
+The implementation added `plugins/spotify-playback`, a Tauri plugin whose Rust side exposes one platform-identical playback contract while Android and iOS perform only the native Spotify operations that cannot live in the framework-independent core.
+
+The resulting flow is:
+
+1. a normalized `MirrorEvent` enters the Rust `MirrorEngine`;
+2. Rust alone decides whether the event is `Ignored`, establishes a `Baseline`, produces `PlayTrack`, or produces `Pause`;
+3. `Ignored` and `Baseline` cause no Spotify call;
+4. `PlayTrack` and `Pause` are dispatched through the Rust plugin boundary;
+5. Kotlin on Android or Swift on iOS executes the corresponding Spotify App Remote command in the follower's own Spotify app.
+
+This preserves baseline-on-arm, selected-listener filtering, event ordering, and duplicate suppression in one Rust implementation rather than duplicating those rules in Kotlin and Swift.
+
+The Android adapter uses Spotify Android App Remote and a reproducible fetch script for Spotify's official App Remote binary. The binary itself is excluded from the repository and remains clearly identified as third-party Spotify material.
+
+The iOS adapter uses Spotify iOS App Remote and the `trackmirror://spotify-callback` scheme for the authorization return path. If Spotify must be awakened, the adapter uses Spotify's own authorization/play mechanism for the exact mirrored URI; the Swift layer does not independently decide what track should be mirrored.
+
+The shared development UI was also changed so a manually injected event follows the complete Rust decision path and, on mobile, can reach the native Spotify adapter. The first post-arm event still establishes a baseline; a subsequent changed exact URI is the event intended to prove native playback on device.
+
+This is an implementation milestone, not yet a device-validation milestone. At this point the Rust/Tauri bridge is being compile-checked in repository CI, but Android and iOS native builds and real-device Spotify playback still require platform-specific build/test environments.
+
+The code and implementation prose in this milestone were produced with AI assistance. The repository owner's human contribution being preserved here is the product concept and the architecture direction that Track Mirror use one Rust decision engine, a replaceable cross-platform shell, and thin native adapters rather than separate platform-specific implementations of the mirroring rules.
 
 ## Authorship and provenance
 
