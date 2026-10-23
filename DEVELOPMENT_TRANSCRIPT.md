@@ -128,10 +128,26 @@ The installer now validates all three source files, snapshots any pre-existing c
 
 Both shell scripts were syntax-checked with `bash -n` before being committed. Current Spicetify documentation confirms that `spicetify config extensions <filename>` appends extensions rather than replacing the user's existing extension list.
 
+## 2026-10-23 — Screenshot-driven removal of remaining overlays
+
+The repository owner supplied a live screenshot showing that, despite the main control having been redesigned, the running legacy proof of concept still displayed three persistent Track Mirror elements over Spotify content: the old friend selector/Mirror control, the friend-activity diagnostic badge, and the URI-probe diagnostic badge.
+
+The legacy code was corrected so:
+
+- `track-mirror-friend-activity.js` no longer creates a visible fixed diagnostic badge;
+- `track-mirror-dom-uri-probe.js` no longer creates a visible fixed URI-probe badge;
+- both components continue to emit/persist the same development data and log diagnostics to the console;
+- startup removes stale badge elements left by an earlier loaded version;
+- the playback extension remains the only user-facing legacy control, through the top-bar button and on-demand modal;
+- a repository search confirmed no remaining `position: "fixed"` Track Mirror UI code on `main`.
+
+This change implements the cross-platform product requirement that Track Mirror controls and diagnostics must not permanently cover or obstruct host-app content.
+
 ## Current handoff point
 
 - The legacy Spicetify build is the working proof of concept / temporary usable Linux version.
 - Its non-obstructive top-bar/modal UI and complete three-extension installer/restore path are now on `main`.
+- All persistent diagnostic overlays have been removed from the legacy proof of concept.
 - PR #1 (`desktop-native-playback`) remains separate unmerged Rust/Tauri desktop work.
 - Android/iOS Rust-to-native Spotify bridge work remains part of the shared next-generation architecture.
 - The new Linux Rust/Tauri build is to be developed in parallel and eventually replace the proof of concept only after validation and repository-owner approval.
