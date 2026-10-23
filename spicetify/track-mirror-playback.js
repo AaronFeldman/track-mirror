@@ -85,6 +85,9 @@
       whiteSpace: "nowrap",
     });
 
+    const builtInIcon = element.querySelector("svg");
+    if (builtInIcon) builtInIcon.style.display = "none";
+
     let label = element.querySelector(`.${TOPBAR_TEXT_CLASS}`);
     if (!label) {
       label = document.createElement("span");
@@ -98,7 +101,7 @@
       element.appendChild(label);
     }
 
-    label.textContent = "Track Mirror";
+    label.textContent = enabled ? "⇄ Track Mirror" : "▷ Track Mirror";
   }
 
   function updateTopbarButton() {
