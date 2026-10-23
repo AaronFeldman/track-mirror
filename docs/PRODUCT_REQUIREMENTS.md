@@ -16,6 +16,20 @@ Permanent floating overlays that cover host-application content are not acceptab
 
 The requirement is functional, not tied to one toolkit: each platform should use its native or framework-appropriate equivalent while preserving unobstructed usable space.
 
+## Visible Track Mirror identity
+
+The primary Track Mirror control or application surface must visibly identify itself with the text **“Track Mirror”** in its normal, unclicked, non-hovered state.
+
+An icon may accompany the name, but an icon alone is not sufficient for the primary Track Mirror control.
+
+Platform expectations:
+
+- Linux, Windows, and macOS desktop builds: the normal toolbar/top-bar/menu-bar application control should visibly include **Track Mirror** wherever the platform permits text in that control.
+- Android and iOS/iPadOS builds: the normal app header, app bar, or equivalent primary control surface should visibly include **Track Mirror** without requiring a tap, long-press, or hover-equivalent interaction.
+- Compact operating-system surfaces that inherently allow icons only, such as some tray/status areas, may use an icon there, but the ordinary Track Mirror application/control surface must still provide the visible text identity.
+
+This requirement exists so the user can immediately recognize what the control belongs to without guessing the meaning of an icon.
+
 ## Legacy Linux Spicetify proof of concept
 
 The existing Spicetify implementation is a **working proof of concept and temporary usable Linux version**. It is retained so the repository owner can continue using Track Mirror while the new Linux Rust/Tauri implementation is developed and validated.
