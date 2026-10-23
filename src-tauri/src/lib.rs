@@ -152,6 +152,46 @@ fn android_play_track_via_media_session(
 }
 
 #[tauri::command]
+fn android_play_track_via_media_session_search(
+    track_uri: String,
+    app: AppHandle,
+) -> Result<AndroidMediaSessionResponse, String> {
+    #[cfg(target_os = "android")]
+    {
+        return app
+            .spotify_playback()
+            .play_track_via_media_session_search(track_uri)
+            .map_err(|error| error.to_string());
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (track_uri, app);
+        Err("Android MediaSession controls are available only on Android".into())
+    }
+}
+
+#[tauri::command]
+fn android_open_track_via_spotify_link(
+    track_uri: String,
+    app: AppHandle,
+) -> Result<AndroidMediaSessionResponse, String> {
+    #[cfg(target_os = "android")]
+    {
+        return app
+            .spotify_playback()
+            .open_track_via_spotify_link(track_uri)
+            .map_err(|error| error.to_string());
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (track_uri, app);
+        Err("Android Spotify-link controls are available only on Android".into())
+    }
+}
+
+#[tauri::command]
 fn android_pause_via_media_session(
     app: AppHandle,
 ) -> Result<AndroidMediaSessionResponse, String> {
@@ -275,6 +315,8 @@ pub fn run() {
             android_open_media_control_access,
             android_media_session_status,
             android_play_track_via_media_session,
+            android_play_track_via_media_session_search,
+            android_open_track_via_spotify_link,
             android_pause_via_media_session,
             process_mirror_event,
             process_and_apply_mirror_event
