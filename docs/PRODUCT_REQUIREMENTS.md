@@ -30,6 +30,23 @@ Platform expectations:
 
 This requirement exists so the user can immediately recognize what the control belongs to without guessing the meaning of an icon.
 
+## Self-dismissing quick controls
+
+Track Mirror quick-control dialogs, popovers, and sheets should not require the user to press an **X** merely to finish a normal change.
+
+Changes should take effect immediately, and the quick-control surface should dismiss itself after the user's final action whenever the platform allows this cleanly.
+
+The interface must make a strong distinction between **closing the controls** and **turning Track Mirror off**:
+
+- closing or dismissing a dialog does not disable mirroring;
+- mirroring changes state only through the explicit Mirroring ON/OFF control;
+- selecting a new friend/source takes effect immediately;
+- when mirroring is already on, choosing a new friend/source may complete the interaction and dismiss the quick-control surface;
+- pressing the explicit Mirroring ON/OFF control completes the interaction and should dismiss the quick-control surface;
+- a visible close control may remain as a fallback, but it must not be required in the ordinary workflow.
+
+This behavior is an accessibility/usability requirement. Users should not have to infer whether an **X** means “close this panel” or “turn Track Mirror off.”
+
 ## Legacy Linux Spicetify proof of concept
 
 The existing Spicetify implementation is a **working proof of concept and temporary usable Linux version**. It is retained so the repository owner can continue using Track Mirror while the new Linux Rust/Tauri implementation is developed and validated.
