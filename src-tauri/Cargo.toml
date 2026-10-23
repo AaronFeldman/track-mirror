@@ -16,4 +16,6 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 serde.workspace = true
+tauri-plugin-deep-link = "2"
 track-mirror-core = { path = "../crates/track-mirror-core" }
+track-mirror-spotify-playback = { path = "../plugins/spotify-playback" }
