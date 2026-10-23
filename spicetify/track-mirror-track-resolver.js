@@ -2,7 +2,6 @@
   const PREFIX = "[Track Mirror Resolver]";
   const STATUS_ID = "track-mirror-resolver-status";
   const CACHE = new Map();
-  let latestObservations = [];
 
   function normalizeText(value) {
     return (value || "").replace(/\s+/g, " ").trim();
@@ -44,8 +43,7 @@
     }
 
     const summary = activitySummary(obs);
-    const separators = [" — ", " – "];
-    for (const separator of separators) {
+    for (const separator of [" — ", " – "]) {
       const index = summary.lastIndexOf(separator);
       if (index > 0) {
         const track = normalizeText(summary.slice(0, index));
@@ -53,7 +51,6 @@
         if (track && artist) return { track, artist };
       }
     }
-
     return null;
   }
 
@@ -76,7 +73,7 @@
     badge.style.fontWeight = "600";
     badge.style.boxShadow = "0 2px 10px rgba(0,0,0,0.35)";
     badge.style.pointerEvents = "none";
-    badge.style.maxWidth = "720px";
+    badge.style.maxWidth = "760px";
     badge.style.whiteSpace = "normal";
     document.body.appendChild(badge);
     return badge;
@@ -99,8 +96,38 @@
 
     if (artists.includes(wantedArtist)) score += 8;
     else if (artists.some((name) => name.includes(wantedArtist) || wantedArtist.includes(name))) score += 4;
-
     return score;
+  }
+
+  function clientAccessToken() {
+    try {
+      return Spicetify.Platform?.AuthorizationAPI?.getState?.()?.token?.accessToken || null;
+    } catch (error) {
+      console.warn(PREFIX, "Could not read Spotify client token", error);
+      return null;
+    }
+  }
+
+  async function directSearch(query) {
+    const token = clientAccessToken();
+    if (!token) throw new Error("Spotify client token unavailable");
+
+    const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`Spotify search HTTP ${response.status}${body ? `: ${body.slice(0, 100)}` : ""}`);
+    }
+    return response.json();
+  }
+
+  async function cosmosSearch(query) {
+    const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`;
+    return Spicetify.CosmosAsync.get(url);
   }
 
   async function searchSpotify(parsed) {
@@ -112,17 +139,24 @@
 
     let lastError = null;
     for (const query of queries) {
-      const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`;
       try {
-        const response = await Spicetify.CosmosAsync.get(url);
-        const items = response?.tracks?.items || [];
-        if (items.length) return { items, error: null };
+        const direct = await directSearch(query);
+        const directItems = direct?.tracks?.items || [];
+        if (directItems.length) return { items: directItems, transport: "direct", error: null };
+      } catch (error) {
+        lastError = error;
+      }
+
+      try {
+        const cosmos = await cosmosSearch(query);
+        const cosmosItems = cosmos?.tracks?.items || [];
+        if (cosmosItems.length) return { items: cosmosItems, transport: "cosmos", error: null };
       } catch (error) {
         lastError = error;
       }
     }
 
-    return { items: [], error: lastError };
+    return { items: [], transport: null, error: lastError };
   }
 
   async function resolveTrack(parsed) {
@@ -130,16 +164,15 @@
     if (CACHE.has(key)) return CACHE.get(key);
 
     const promise = (async () => {
-      const { items, error } = await searchSpotify(parsed);
-      if (error && !items.length) {
+      const { items, transport, error } = await searchSpotify(parsed);
+      if (!items.length) {
         return {
           ok: false,
-          error: normalizeText(error?.message || error?.statusText || String(error)).slice(0, 120),
+          error: error ? normalizeText(error?.message || String(error)).slice(0, 150) : "no catalog results",
           track: null,
+          transport,
         };
       }
-
-      if (!items.length) return { ok: false, error: "no catalog results", track: null };
 
       const ranked = items
         .map((item) => ({ item, score: similarityScore(item, parsed) }))
@@ -151,6 +184,7 @@
           ok: false,
           error: `no confident match (best score ${best?.score ?? 0})`,
           track: best?.item || null,
+          transport,
         };
       }
 
@@ -158,6 +192,7 @@
       return {
         ok: true,
         error: null,
+        transport,
         track: {
           id: match.id || null,
           uri: match.uri || null,
@@ -168,8 +203,9 @@
       };
     })().catch((error) => ({
       ok: false,
-      error: normalizeText(error?.message || String(error)).slice(0, 120),
+      error: normalizeText(error?.message || String(error)).slice(0, 150),
       track: null,
+      transport: null,
     }));
 
     CACHE.set(key, promise);
@@ -177,8 +213,7 @@
   }
 
   async function resolveObservations(observations) {
-    latestObservations = observations || [];
-    const candidates = latestObservations
+    const candidates = (observations || [])
       .map((obs) => ({ obs, parsed: parseTrackArtist(obs) }))
       .filter((entry) => entry.parsed);
 
@@ -198,7 +233,7 @@
     const details = resolved.map(({ obs, parsed, result }) => {
       const friend = obs.friend?.name || "unknown";
       if (!result?.ok) return `${friend}: ${parsed.track} — ${parsed.artist} ✗ ${result?.error || "unknown error"}`;
-      return `${friend}: ${result.track.name} — ${result.track.artists.join(", ")} ✓ Spotify`;
+      return `${friend}: ${result.track.name} — ${result.track.artists.join(", ")} ✓ Spotify/${result.transport}`;
     });
 
     setBadge(`Track Mirror resolver • ${details.join(" | ")}`);
@@ -208,6 +243,7 @@
       displayed: parsed,
       resolvedTrack: result?.ok ? result.track : null,
       resolutionError: result?.ok ? null : result?.error || "unknown error",
+      transport: result?.transport || null,
       observedAt: obs.observedAt || new Date().toISOString(),
     }));
 
@@ -217,7 +253,7 @@
   }
 
   function start() {
-    if (!window.Spicetify?.CosmosAsync) {
+    if (!window.Spicetify?.CosmosAsync || !window.Spicetify?.Platform) {
       setTimeout(start, 250);
       return;
     }
@@ -233,7 +269,6 @@
     });
 
     setBadge("Track Mirror resolver: loaded");
-
     const initial = window.TrackMirrorFriendActivity?.getLastObservations?.() || [];
     if (initial.length) resolveObservations(initial);
   }
