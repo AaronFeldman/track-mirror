@@ -20,6 +20,16 @@ function show(output, value) {
   output.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 }
 
+function exactTrackUri() {
+  const trackUri = mediaSessionTrackUriInput.value.trim();
+  if (!trackUri.startsWith('spotify:track:')) {
+    show(mediaSessionOutput, 'Paste an exact spotify:track: URI first.');
+    return null;
+  }
+  localStorage.setItem('track-mirror.mediasession-track-uri', trackUri);
+  return trackUri;
+}
+
 async function refreshStatus() {
   try {
     show(statusOutput, await invoke('engine_status'));
@@ -80,16 +90,33 @@ document.querySelector('#media-session-status').addEventListener('click', async 
 });
 
 document.querySelector('#media-session-play').addEventListener('click', async () => {
-  const trackUri = mediaSessionTrackUriInput.value.trim();
-  if (!trackUri.startsWith('spotify:track:')) {
-    show(mediaSessionOutput, 'Paste an exact spotify:track: URI first.');
-    return;
-  }
-
-  localStorage.setItem('track-mirror.mediasession-track-uri', trackUri);
+  const trackUri = exactTrackUri();
+  if (!trackUri) return;
 
   try {
     show(mediaSessionOutput, await invoke('android_play_track_via_media_session', { trackUri }));
+  } catch (error) {
+    show(mediaSessionOutput, String(error));
+  }
+});
+
+document.querySelector('#media-session-search').addEventListener('click', async () => {
+  const trackUri = exactTrackUri();
+  if (!trackUri) return;
+
+  try {
+    show(mediaSessionOutput, await invoke('android_play_track_via_media_session_search', { trackUri }));
+  } catch (error) {
+    show(mediaSessionOutput, String(error));
+  }
+});
+
+document.querySelector('#spotify-track-link').addEventListener('click', async () => {
+  const trackUri = exactTrackUri();
+  if (!trackUri) return;
+
+  try {
+    show(mediaSessionOutput, await invoke('android_open_track_via_spotify_link', { trackUri }));
   } catch (error) {
     show(mediaSessionOutput, String(error));
   }
