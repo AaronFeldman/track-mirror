@@ -58,6 +58,7 @@ fn configure_spotify(
     redirect_uri: String,
     app: AppHandle,
 ) -> Result<PlaybackResponse, String> {
+    #[cfg(mobile)]
     if !redirect_uri.starts_with("trackmirror://") {
         return Err("Track Mirror mobile Spotify redirect URI must use the registered trackmirror:// scheme".into());
     }
@@ -121,7 +122,6 @@ fn process_and_apply_mirror_event(
             .map_err(|error| error.to_string())?
     };
 
-    #[cfg(mobile)]
     let playback = match &action {
         MirrorAction::PlayTrack { track_uri } => Some(
             app.spotify_playback()
@@ -136,12 +136,6 @@ fn process_and_apply_mirror_event(
         MirrorAction::Ignored { .. } | MirrorAction::Baseline { .. } => None,
     };
 
-    #[cfg(desktop)]
-    let playback = {
-        let _ = &app;
-        None
-    };
-
     Ok(MirrorApplyResult { action, playback })
 }
 
@@ -153,9 +147,6 @@ pub fn run() {
         .setup(|app| {
             #[cfg(target_os = "ios")]
             {
-                // The expected Spotify authorization flow starts in Track Mirror,
-                // switches to Spotify, then returns to this already-running app.
-                // Route only our registered callback scheme into the native adapter.
                 if let Some(urls) = app.deep_link().get_current()? {
                     for url in urls {
                         if url.as_str().starts_with("trackmirror://") {
