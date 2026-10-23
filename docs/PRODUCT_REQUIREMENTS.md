@@ -22,7 +22,7 @@ The requirement is functional, not tied to one toolkit: each platform should use
 
 The primary Track Mirror control or application surface must visibly identify itself with the text **“Track Mirror”** in its normal, unclicked, non-hovered state.
 
-An icon may accompany the name, but an icon alone is not sufficient for the primary Track Mirror control.
+An icon or state glyph accompanies the name in the approved reference, but an icon or glyph alone is not sufficient for the primary Track Mirror control.
 
 Platform expectations:
 
@@ -31,6 +31,25 @@ Platform expectations:
 - Compact operating-system surfaces that inherently allow icons only, such as some tray/status areas, may use an icon there, but the ordinary Track Mirror application/control surface must still provide the visible text identity.
 
 This requirement exists so the user can immediately recognize what the control belongs to without guessing the meaning of an icon.
+
+## Stateful primary control
+
+The approved reference uses the primary Track Mirror control itself to communicate whether mirroring is active:
+
+- **▷ Track Mirror** = mirroring OFF / ready but not active.
+- **⇄ Track Mirror** = mirroring ON / actively mirroring the selected source.
+
+This stateful control pattern is now a cross-platform requirement wherever the platform can present an equivalent compact control.
+
+Requirements:
+
+- the state glyph/icon and **Track Mirror** label must belong to the same actual clickable/tappable control;
+- the state cue must not be visually detached from a separate hidden or adjacent click target;
+- the state glyph/icon must be visually prominent enough to announce an interactive UI element rather than appearing as tiny decoration;
+- the tested Linux reference uses an approximately 26 px state glyph beside compact control text; other platforms should scale proportionally to native density, control sizing, and accessibility settings rather than copy the pixel size mechanically;
+- the OFF and ON states must remain visually distinct at a glance;
+- the glyph/icon is a redundant state cue, not the sole explanation of state; the quick-control surface must still use explicit **Mirroring ON / Mirroring OFF** wording;
+- if exact Unicode glyphs are inappropriate or render poorly on a platform, a native equivalent may be used only if it preserves the same OFF/ON meaning, obvious click/tap affordance, and visible **Track Mirror** identity.
 
 ## Self-dismissing quick controls
 
@@ -83,4 +102,4 @@ Across all builds:
 - keep platform-specific source/playback mechanics behind adapters;
 - preserve rollback/recovery paths for integrations that modify or wrap local Spotify behavior;
 - prefer exact Spotify track identifiers already available from source state over repeated catalog search when practical;
-- follow the approved Track Mirror UI reference and self-dismissing quick-control behavior wherever platform conventions allow.
+- follow the approved Track Mirror UI reference, including the stateful primary control and self-dismissing quick-control behavior, wherever platform conventions allow.
