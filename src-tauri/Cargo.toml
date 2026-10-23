@@ -19,3 +19,10 @@ serde.workspace = true
 tauri-plugin-deep-link = "2"
 track-mirror-core = { path = "../crates/track-mirror-core" }
 track-mirror-spotify-playback = { path = "../plugins/spotify-playback" }
+
+# tauri-plugin-deep-link 2.6.2 currently initializes rust-ini's ParseOption
+# using the 0.21.1 field set. rust-ini 0.21.2 added public fields without a
+# corresponding plugin update, so keep Linux resolution on the compatible
+# version until the upstream plugin adjusts.
+[target.'cfg(target_os = "linux")'.dependencies]
+rust-ini = "=0.21.1"
