@@ -14,6 +14,17 @@ The decisive question is:
 
 If yes, this route becomes the preferred Android commercial playback adapter candidate.
 
+## Repository-owner decisions
+
+The following are repository-owner product/development decisions, not merely implementation defaults:
+
+- prioritize the Android MediaSession route as the current commercial-safe playback experiment after review of the alternatives;
+- use an Android emulator first for repeatable day-to-day development and MediaSession experimentation;
+- follow emulator success with physical-device testing before treating Spotify/MediaSession behavior as proven for real-world use;
+- keep the existing App Remote path intact while this experiment is evaluated.
+
+AI assistance may provide implementation code, testing procedures, documentation, and analysis, but these product and validation choices are attributed to the repository owner.
+
 ## What this spike changes
 
 The branch adds an experimental Android-only path alongside the existing Spotify App Remote path. It does **not** replace normal mirroring behavior yet.
@@ -37,12 +48,14 @@ Track Mirror's spike declares a minimal notification-listener service for this p
 
 This permission model must be reviewed separately for Play Store policy and user disclosure before any commercial release. The current branch is an engineering experiment only.
 
-## Test sequence
+## Validation sequence
 
-Use a physical Android phone with Spotify installed.
+### Stage 1 — emulator-first development
 
-1. Install/run the Track Mirror Android spike build.
-2. Open Spotify manually and start any track so Spotify publishes an active media session.
+Use a Google Play-enabled Android emulator so the real Spotify application can be installed from Google Play and the environment can be reset/snapshotted for repeatable testing.
+
+1. Install/run the Track Mirror Android spike build in the emulator.
+2. Install Spotify in the emulator and start any track so Spotify publishes an active media session.
 3. Return to Track Mirror.
 4. In **Android MediaSession spike**, press **Enable media-control access**.
 5. Enable Track Mirror in Android's notification-listener settings and return to Track Mirror.
@@ -51,6 +64,10 @@ Use a physical Android phone with Spotify installed.
 8. Paste an exact URI such as `spotify:track:<id>` for a track different from the one currently playing.
 9. Press **Test exact-track play**.
 10. Observe Spotify directly.
+
+### Stage 2 — physical-device confirmation
+
+If the emulator succeeds, repeat the same test on at least one real Android phone before treating MediaSession playback as validated. Real-device testing is required because emulator success alone does not prove OEM/background/audio-focus behavior or Spotify's production-device behavior.
 
 ### Primary success criterion
 
