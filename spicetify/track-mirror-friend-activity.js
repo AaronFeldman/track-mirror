@@ -1,11 +1,8 @@
 (function trackMirrorFriendActivity() {
   const PREFIX = "[Track Mirror]";
   const STORAGE_KEY = "track-mirror:last-observations";
-  const STATUS_ID = "track-mirror-status-badge";
   const SCAN_DEBOUNCE_MS = 200;
   let scanTimer = null;
-  let lastCount = 0;
-  let lastPanelFound = false;
 
   function log(...args) {
     console.log(PREFIX, ...args);
@@ -48,7 +45,7 @@
   function addAncestorRoots(roots, node, levels = 7) {
     let current = node instanceof Element ? node : node.parentElement;
     for (let i = 0; current && i < levels; i += 1, current = current.parentElement) {
-      if (current.id !== STATUS_ID && current !== document.body && current !== document.documentElement) {
+      if (current !== document.body && current !== document.documentElement) {
         roots.add(current);
       }
     }
@@ -84,7 +81,6 @@
 
     document.querySelectorAll("aside, section, [role='complementary'], h1, h2, h3, h4, button, [role='button']")
       .forEach((node) => {
-        if (node.id === STATUS_ID || node.closest(`#${STATUS_ID}`)) return;
         if (activityLabelMatches(node.textContent)) addAncestorRoots(roots, node, 9);
       });
 
@@ -94,7 +90,7 @@
     while ((textNode = walker.nextNode()) && checked < 10000) {
       checked += 1;
       const parent = textNode.parentElement;
-      if (!parent || parent.id === STATUS_ID || parent.closest(`#${STATUS_ID}`)) continue;
+      if (!parent) continue;
       if (activityLabelMatches(textNode.nodeValue)) addAncestorRoots(roots, parent, 9);
     }
 
@@ -112,7 +108,6 @@
     const matches = [];
     for (const root of roots) {
       root.querySelectorAll("div, li, [role='listitem'], button").forEach((node) => {
-        if (node.id === STATUS_ID || node.closest(`#${STATUS_ID}`)) return;
         const text = normalizeText(node.innerText || node.textContent);
         if (!looksLikeActivityText(text)) return;
 
@@ -130,7 +125,6 @@
     const linkedRows = [];
     for (const root of roots) {
       root.querySelectorAll("div, li, [role='listitem']").forEach((node) => {
-        if (node.id === STATUS_ID || node.closest(`#${STATUS_ID}`)) return;
         const links = collectLinks(node);
         const kinds = new Set(links.map((l) => l.kind));
         if ((kinds.has("user") || node.getAttribute("role") === "listitem") && kinds.has("track")) {
@@ -209,68 +203,6 @@
     return Array.from(byKey.values());
   }
 
-  function visibleActivitySummary(obs) {
-    const friendName = normalizeText(obs.friend?.name || "");
-    let text = normalizeText(obs.rawText || "");
-
-    if (friendName && text.toLowerCase().startsWith(friendName.toLowerCase())) {
-      text = normalizeText(text.slice(friendName.length));
-    }
-
-    text = text.replace(/^\s*[•·|\-–—:]\s*/, "");
-    text = text.replace(/\b(?:\d+\s*(?:min|mins|minute|minutes|hr|hrs|hour|hours)|now)\b\s*$/i, "").trim();
-
-    if (obs.track?.name) {
-      const pieces = [obs.track.name, obs.artist?.name].filter(Boolean);
-      return pieces.join(" — ").slice(0, 110);
-    }
-
-    return text.slice(0, 110) || "activity text unavailable";
-  }
-
-  function ensureStatusBadge() {
-    let badge = document.getElementById(STATUS_ID);
-    if (badge) return badge;
-
-    badge = document.createElement("div");
-    badge.id = STATUS_ID;
-    badge.setAttribute("role", "status");
-    badge.style.position = "fixed";
-    badge.style.right = "16px";
-    badge.style.bottom = "88px";
-    badge.style.zIndex = "999999";
-    badge.style.padding = "8px 12px";
-    badge.style.borderRadius = "12px";
-    badge.style.background = "rgba(20,20,20,0.92)";
-    badge.style.color = "white";
-    badge.style.fontSize = "12px";
-    badge.style.fontWeight = "600";
-    badge.style.boxShadow = "0 2px 10px rgba(0,0,0,0.35)";
-    badge.style.pointerEvents = "none";
-    badge.style.maxWidth = "620px";
-    badge.style.whiteSpace = "normal";
-    document.body.appendChild(badge);
-    return badge;
-  }
-
-  function updateStatusBadge(panelFound, observations) {
-    lastPanelFound = panelFound;
-    lastCount = observations.length;
-    const badge = ensureStatusBadge();
-    if (!panelFound) {
-      badge.textContent = "Track Mirror: loaded • Listening activity panel not found";
-      return;
-    }
-
-    const details = observations.slice(0, 4).map((obs) => {
-      const name = obs.friend?.name || "unknown";
-      return `${name}: ${visibleActivitySummary(obs)}`;
-    });
-
-    const suffix = details.length ? ` • ${details.join(" | ")}` : "";
-    badge.textContent = `Track Mirror: loaded • Listening activity panel found • friends: ${observations.length}${suffix}`;
-  }
-
   function persist(observations) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(observations));
@@ -280,17 +212,14 @@
   }
 
   function emit(observations) {
-    const event = new CustomEvent("track-mirror:friend-activity", { detail: observations });
-    window.dispatchEvent(event);
+    window.dispatchEvent(new CustomEvent("track-mirror:friend-activity", { detail: observations }));
     log("Listening activity observations", observations);
   }
 
   function scan() {
     const roots = friendActivityRoots();
-    const panelFound = roots.length > 0;
     const observations = dedupe(candidateRows(roots).map(parseRow).filter(Boolean));
     persist(observations);
-    updateStatusBadge(panelFound, observations);
     emit(observations);
     return observations;
   }
@@ -306,17 +235,11 @@
       return;
     }
 
+    document.getElementById("track-mirror-status-badge")?.remove();
     log("Listening activity discovery adapter loaded");
-    updateStatusBadge(false, []);
     scan();
 
-    const observer = new MutationObserver(() => {
-      if (!document.getElementById(STATUS_ID)) {
-        ensureStatusBadge();
-        updateStatusBadge(lastPanelFound, Array(lastCount).fill({}));
-      }
-      scheduleScan();
-    });
+    const observer = new MutationObserver(scheduleScan);
     observer.observe(document.body, {
       childList: true,
       subtree: true,
