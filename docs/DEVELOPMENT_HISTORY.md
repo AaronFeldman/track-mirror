@@ -138,6 +138,16 @@ This is an implementation milestone, not yet a device-validation milestone. At t
 
 The code and implementation prose in this milestone were produced with AI assistance. The repository owner's human contribution being preserved here is the product concept and the architecture direction that Track Mirror use one Rust decision engine, a replaceable cross-platform shell, and thin native adapters rather than separate platform-specific implementations of the mirroring rules.
 
+## Standing repository-owner provenance rule
+
+On October 23, 2026, the repository owner expressly directed that Track Mirror take every reasonable opportunity to preserve the repository owner's material decisions as such in the project record.
+
+Accordingly, material repository-owner decisions about product behavior, architecture, UX, accessibility, licensing, commercialization, launch strategy, testing methodology, workflow, platform priorities, naming, and similar project direction should be recorded explicitly and contemporaneously when practical. The record should identify them as repository-owner decisions rather than allowing them to disappear into implementation history.
+
+This rule does not mean every incidental command, typo correction, or low-level implementation detail is treated as a human-authored design contribution. The provenance record should focus on substantive choices that shape what Track Mirror is, how it behaves, how it is distributed, or how development is directed.
+
+AI-assisted research, analysis, coding, drafting, documentation, and implementation should continue to be identified separately and should not be misrepresented as independently human-authored material. When a substantive owner decision leads to AI-assisted implementation, the project record should preserve both sides of that distinction.
+
 ## Authorship and provenance
 
 The product concept, requested behavior, terminology, functional requirements, architectural constraints, portability requirements, mobile-priority decision, Rust preference, framework-independence requirement, and iterative design choices were supplied and directed by the repository owner. AI assistance is being used as a development tool for drafting, research, organization, and implementation support.
