@@ -12,6 +12,7 @@
   let lastStatus = "";
   let topbarButton = null;
   let refreshOpenModal = null;
+  let dismissTimer = null;
 
   function normalize(value) {
     return (value || "").replace(/\s+/g, " ").trim();
@@ -33,6 +34,14 @@
 
   function currentPlayerUri() {
     return Spicetify.Player?.data?.item?.uri || null;
+  }
+
+  function dismissControlModal(delay = 250) {
+    clearTimeout(dismissTimer);
+    dismissTimer = setTimeout(() => {
+      Spicetify.PopupModal?.hide?.();
+      dismissTimer = null;
+    }, delay);
   }
 
   function setSelectedFriend(value) {
@@ -155,7 +164,11 @@
             "select",
             {
               value: selectedFriend,
-              onChange: (event) => setSelectedFriend(event.target.value),
+              onChange: (event) => {
+                const mirroringWasEnabled = enabled;
+                setSelectedFriend(event.target.value);
+                if (mirroringWasEnabled) dismissControlModal();
+              },
               style: {
                 width: "100%",
                 padding: "8px 10px",
@@ -176,7 +189,10 @@
           "button",
           {
             type: "button",
-            onClick: () => setEnabled(!enabled),
+            onClick: () => {
+              setEnabled(!enabled);
+              dismissControlModal();
+            },
             style: {
               width: "100%",
               padding: "9px 12px",
@@ -209,10 +225,10 @@
             style: {
               fontSize: "11px",
               lineHeight: 1.4,
-              opacity: 0.55,
+              opacity: 0.62,
             },
           },
-          "Track Mirror controls stay out of the way until you open them from the top bar.",
+          "Changes take effect immediately. This panel closes automatically after your action. Closing it never turns Track Mirror off.",
         ),
       );
     }
@@ -221,6 +237,8 @@
   }
 
   function openControlModal() {
+    clearTimeout(dismissTimer);
+    dismissTimer = null;
     Spicetify.PopupModal.display({
       title: "Track Mirror",
       content: controlPanelElement(),
