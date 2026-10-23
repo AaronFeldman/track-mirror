@@ -8,6 +8,15 @@
     return (value || "").replace(/\s+/g, " ").trim();
   }
 
+  function normalizeKey(value) {
+    return normalizeText(value)
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[’‘]/g, "'")
+      .replace(/[“”]/g, '"')
+      .toLowerCase();
+  }
+
   function activitySummary(obs) {
     const friendName = normalizeText(obs.friend?.name || "");
     let text = normalizeText(obs.rawText || "");
@@ -67,7 +76,7 @@
     badge.style.fontWeight = "600";
     badge.style.boxShadow = "0 2px 10px rgba(0,0,0,0.35)";
     badge.style.pointerEvents = "none";
-    badge.style.maxWidth = "620px";
+    badge.style.maxWidth = "720px";
     badge.style.whiteSpace = "normal";
     document.body.appendChild(badge);
     return badge;
@@ -78,36 +87,90 @@
     if (badge.textContent !== text) badge.textContent = text;
   }
 
-  function exactMatch(item, parsed) {
-    const itemTrack = normalizeText(item?.name).toLowerCase();
-    const wantedTrack = normalizeText(parsed.track).toLowerCase();
-    const wantedArtist = normalizeText(parsed.artist).toLowerCase();
-    const artists = (item?.artists || []).map((a) => normalizeText(a?.name).toLowerCase());
-    return itemTrack === wantedTrack && artists.includes(wantedArtist);
+  function similarityScore(item, parsed) {
+    const wantedTrack = normalizeKey(parsed.track);
+    const wantedArtist = normalizeKey(parsed.artist);
+    const itemTrack = normalizeKey(item?.name || "");
+    const artists = (item?.artists || []).map((a) => normalizeKey(a?.name || ""));
+
+    let score = 0;
+    if (itemTrack === wantedTrack) score += 8;
+    else if (itemTrack.includes(wantedTrack) || wantedTrack.includes(itemTrack)) score += 4;
+
+    if (artists.includes(wantedArtist)) score += 8;
+    else if (artists.some((name) => name.includes(wantedArtist) || wantedArtist.includes(name))) score += 4;
+
+    return score;
+  }
+
+  async function searchSpotify(parsed) {
+    const queries = [
+      `${parsed.track} ${parsed.artist}`,
+      `track:${parsed.track} artist:${parsed.artist}`,
+      parsed.track,
+    ];
+
+    let lastError = null;
+    for (const query of queries) {
+      const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`;
+      try {
+        const response = await Spicetify.CosmosAsync.get(url);
+        const items = response?.tracks?.items || [];
+        if (items.length) return { items, error: null };
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    return { items: [], error: lastError };
   }
 
   async function resolveTrack(parsed) {
-    const key = `${parsed.track.toLowerCase()}\n${parsed.artist.toLowerCase()}`;
+    const key = `${normalizeKey(parsed.track)}\n${normalizeKey(parsed.artist)}`;
     if (CACHE.has(key)) return CACHE.get(key);
 
     const promise = (async () => {
-      const query = `track:\"${parsed.track}\" artist:\"${parsed.artist}\"`;
-      const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`;
-      const response = await Spicetify.CosmosAsync.get(url);
-      const items = response?.tracks?.items || [];
-      const match = items.find((item) => exactMatch(item, parsed)) || items[0] || null;
-      if (!match) return null;
+      const { items, error } = await searchSpotify(parsed);
+      if (error && !items.length) {
+        return {
+          ok: false,
+          error: normalizeText(error?.message || error?.statusText || String(error)).slice(0, 120),
+          track: null,
+        };
+      }
+
+      if (!items.length) return { ok: false, error: "no catalog results", track: null };
+
+      const ranked = items
+        .map((item) => ({ item, score: similarityScore(item, parsed) }))
+        .sort((a, b) => b.score - a.score);
+
+      const best = ranked[0];
+      if (!best || best.score < 8) {
+        return {
+          ok: false,
+          error: `no confident match (best score ${best?.score ?? 0})`,
+          track: best?.item || null,
+        };
+      }
+
+      const match = best.item;
       return {
-        id: match.id || null,
-        uri: match.uri || null,
-        name: match.name || null,
-        artists: (match.artists || []).map((a) => a.name).filter(Boolean),
-        externalUrl: match.external_urls?.spotify || null,
+        ok: true,
+        error: null,
+        track: {
+          id: match.id || null,
+          uri: match.uri || null,
+          name: match.name || null,
+          artists: (match.artists || []).map((a) => a.name).filter(Boolean),
+          externalUrl: match.external_urls?.spotify || null,
+        },
       };
-    })().catch((error) => {
-      console.warn(PREFIX, "Spotify catalog resolution failed", parsed, error);
-      return null;
-    });
+    })().catch((error) => ({
+      ok: false,
+      error: normalizeText(error?.message || String(error)).slice(0, 120),
+      track: null,
+    }));
 
     CACHE.set(key, promise);
     return promise;
@@ -134,8 +197,8 @@
 
     const details = resolved.map(({ obs, parsed, result }) => {
       const friend = obs.friend?.name || "unknown";
-      if (!result) return `${friend}: ${parsed.track} — ${parsed.artist} ✗`;
-      return `${friend}: ${parsed.track} — ${parsed.artist} ✓ Spotify`;
+      if (!result?.ok) return `${friend}: ${parsed.track} — ${parsed.artist} ✗ ${result?.error || "unknown error"}`;
+      return `${friend}: ${result.track.name} — ${result.track.artists.join(", ")} ✓ Spotify`;
     });
 
     setBadge(`Track Mirror resolver • ${details.join(" | ")}`);
@@ -143,7 +206,8 @@
     const payload = resolved.map(({ obs, parsed, result }) => ({
       friend: obs.friend || null,
       displayed: parsed,
-      resolvedTrack: result,
+      resolvedTrack: result?.ok ? result.track : null,
+      resolutionError: result?.ok ? null : result?.error || "unknown error",
       observedAt: obs.observedAt || new Date().toISOString(),
     }));
 
