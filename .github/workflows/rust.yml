@@ -1,0 +1,24 @@
+name: Rust core
+
+on:
+  push:
+    paths:
+      - 'Cargo.toml'
+      - 'crates/**'
+      - 'src-tauri/**'
+      - '.github/workflows/rust.yml'
+  pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'crates/**'
+      - 'src-tauri/**'
+      - '.github/workflows/rust.yml'
+
+jobs:
+  core-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test framework-independent core
+        run: cargo test -p track-mirror-core
