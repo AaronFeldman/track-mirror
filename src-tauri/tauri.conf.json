@@ -23,5 +23,15 @@
   },
   "bundle": {
     "active": false
+  },
+  "plugins": {
+    "deep-link": {
+      "mobile": [
+        {
+          "scheme": ["trackmirror"],
+          "appLink": false
+        }
+      ]
+    }
   }
 }
