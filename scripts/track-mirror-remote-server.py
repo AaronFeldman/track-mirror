@@ -22,6 +22,10 @@ from urllib.parse import parse_qs, urlsplit
 
 APP_NAME = "track-mirror"
 DEFAULT_PORT = 8765
+SPOTIFY_ORIGINS = {
+    "https://xpui.app.spotify.com",
+    "https://open.spotify.com",
+}
 
 CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
 STATE_HOME = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
@@ -82,7 +86,11 @@ class TrackMirrorHandler(BaseHTTPRequestHandler):
         return self.server.track_mirror_token  # type: ignore[attr-defined]
 
     def _cors(self) -> None:
-        self.send_header("Access-Control-Allow-Origin", "*")
+        origin = self.headers.get("Origin", "")
+        if origin in SPOTIFY_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Private-Network", "true")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Track-Mirror-Token")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Cache-Control", "no-store")
@@ -121,6 +129,16 @@ class TrackMirrorHandler(BaseHTTPRequestHandler):
         self._json(HTTPStatus.UNAUTHORIZED, {"error": "pairing token required"})
         return False
 
+    def _require_spotify_loopback(self) -> bool:
+        if not client_is_loopback(self.client_address[0]):
+            self._json(HTTPStatus.FORBIDDEN, {"error": "desktop bridge endpoint is loopback-only"})
+            return False
+        origin = self.headers.get("Origin", "")
+        if origin and origin not in SPOTIFY_ORIGINS:
+            self._json(HTTPStatus.FORBIDDEN, {"error": "desktop bridge origin is not allowed"})
+            return False
+        return True
+
     def _read_json(self) -> dict:
         length = int(self.headers.get("Content-Length", "0") or "0")
         if length <= 0:
@@ -134,6 +152,11 @@ class TrackMirrorHandler(BaseHTTPRequestHandler):
         return value
 
     def do_OPTIONS(self) -> None:  # noqa: N802
+        origin = self.headers.get("Origin", "")
+        if origin and origin not in SPOTIFY_ORIGINS:
+            self.send_response(HTTPStatus.FORBIDDEN)
+            self.end_headers()
+            return
         self.send_response(HTTPStatus.NO_CONTENT)
         self._cors()
         self.end_headers()
@@ -170,8 +193,7 @@ class TrackMirrorHandler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/api/command":
-            if not client_is_loopback(self.client_address[0]):
-                self._json(HTTPStatus.FORBIDDEN, {"error": "command polling is loopback-only"})
+            if not self._require_spotify_loopback():
                 return
             try:
                 after = int((query.get("after") or ["0"])[0])
@@ -196,8 +218,7 @@ class TrackMirrorHandler(BaseHTTPRequestHandler):
             return
 
         if parsed.path == "/api/state":
-            if not client_is_loopback(self.client_address[0]):
-                self._json(HTTPStatus.FORBIDDEN, {"error": "state publishing is loopback-only"})
+            if not self._require_spotify_loopback():
                 return
 
             friends = payload.get("friends", [])
