@@ -1,6 +1,6 @@
 # Track Mirror — Canonical Project State
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 ## Core concept
 
@@ -21,6 +21,7 @@ Track Mirror is a Spotify companion application that mirrors track identity and 
 - Use **Tauri 2 as an initial replaceable cross-platform shell**, not as the home of product logic.
 - Keep Kotlin, Swift, Spicetify/JavaScript, and desktop-native code as thin platform adapters around the Rust core.
 - Android and iOS/iPadOS are the current first device-validation targets, while Linux, Windows, and macOS remain first-class architectural targets.
+- Prioritize the lightweight phone remote-control path ahead of the full Android application: the desktop/server remains authoritative, while the phone selects the active follow target or stops following.
 - Across every build, Track Mirror controls must **not permanently obscure Spotify/app content**. Prefer normal app chrome for compact status/control, an on-demand modal/popover/sheet for quick controls, and a dedicated Track Mirror screen/window for expanded configuration and diagnostics.
 - Across every build, the normal primary control/app surface must visibly identify itself as **Track Mirror** without requiring hover or a prior click.
 - The approved primary-control state cue is **▷ Track Mirror** for mirroring OFF and **⇄ Track Mirror** for mirroring ON, or the closest unambiguous native equivalent where exact glyphs are unsuitable.
@@ -74,6 +75,32 @@ On October 22, 2026, the repository owner confirmed the first successful live mi
 This validated the core product behavior without copying, proxying, or rebroadcasting audio.
 
 A Spotify catalog-search resolver was also explored but encountered HTTP 429 rate-limit responses. The successful current path therefore prefers exact track identifiers already present in source/client state rather than catalog search.
+
+## Priority phone remote-control MVP
+
+On October 24, 2026, the repository owner prioritized a lightweight Android/phone remote controller ahead of the full Android application. The desktop remains the authoritative Track Mirror host; the phone is a thin control surface that can switch the active followed friend or stop following entirely.
+
+The first implementation is intentionally attached to the working Spicetify proof of concept so it can become usable immediately rather than waiting for the full native mobile stack. The current flow is:
+
+```text
+phone browser
+  -> Track Mirror LAN control server
+  -> loopback command bridge
+  -> Spicetify TrackMirrorPlayback
+  -> selected friend / mirroring ON-OFF
+```
+
+The reverse path reports the currently visible Listening Activity friend list, selected friend, and mirroring state back to the phone. LAN control uses a generated pairing token; the Spicetify bridge endpoints remain loopback-only. No Spotify audio is carried by this bridge.
+
+Primary implementation files:
+
+- `scripts/track-mirror-remote-server.py`
+- `remote/index.html`
+- `spicetify/track-mirror-remote-bridge.js`
+- `scripts/track-mirror-remote-info.sh`
+- `docs/REMOTE_CONTROL_MVP.md`
+
+The Track Mirror desktop launcher starts the remote server automatically once the updated launcher is installed. This bridge is transitional: its product semantics should later move behind the canonical Rust/Tauri host transport rather than becoming permanent Spicetify-specific product logic.
 
 ## Rust-first shared core
 
@@ -172,6 +199,8 @@ The first bridge compile exposed an upstream compatibility break between `tauri-
 
 Current CI does **not** yet prove that the Kotlin Android project or Swift iOS project compiles against the native Spotify SDKs. Those platform builds remain validation work.
 
+The phone remote-control MVP adds syntax checks for its Python server, Spicetify JavaScript bridge, and shell install/rollback scripts.
+
 Separate unmerged desktop-native work exists on `desktop-native-playback`; it must not be confused with the legacy Spicetify proof-of-concept update.
 
 ## Earlier standalone mobile prototypes
@@ -187,12 +216,16 @@ Relevant paths include:
 - `spicetify/track-mirror-friend-activity.js`
 - `spicetify/track-mirror-dom-uri-probe.js`
 - `spicetify/track-mirror-playback.js`
+- `spicetify/track-mirror-remote-bridge.js`
 - `scripts/track-mirror-launch.sh`
+- `scripts/track-mirror-remote-server.py`
+- `scripts/track-mirror-remote-info.sh`
 - `scripts/install-desktop-launcher.sh`
 - `desktop/track-mirror.desktop.in`
 - `scripts/install-track-mirror.sh`
 - `scripts/restore-spotify.sh`
 - `docs/INSTALL_AND_RECOVERY.md`
+- `docs/REMOTE_CONTROL_MVP.md`
 
 The ordinary Spotify installation remains separate. The working proof of concept should not be removed or broken merely because the replacement Linux build is under development. Cutover occurs only after the replacement is functionally reliable and the repository owner approves it.
 
@@ -221,10 +254,12 @@ The proof-of-concept UI is also the current reference implementation for the cro
 19. Source selection and Mirroring ON/OFF quick actions must apply immediately and should automatically dismiss their transient control surface after completion across phone, tablet, and desktop builds.
 20. Closing/dismissing a quick-control surface is never equivalent to disabling Track Mirror; only the explicit Mirroring ON/OFF control changes mirroring state.
 21. `docs/UI_REFERENCE.md` is the canonical cross-platform visual/interaction reference, derived from the approved working Spicetify control implementation.
+22. The desktop/server is the authoritative holder of active follow state for remote-control use; phones/tablets may act as lightweight controllers that switch targets or stop following without duplicating the desktop source-observation stack.
+23. The phone remote-control MVP is prioritized ahead of completing the full native Android application, but its transitional Spicetify transport must remain replaceable by the canonical Rust/Tauri host transport.
 
 ## Open technical questions
 
-- Mobile transport from a source adapter to Android/iOS follower clients.
+- Migration of the phone remote-control transport from the transitional Spicetify bridge into the canonical Rust/Tauri host.
 - Android lifecycle/background behavior once live transport is added.
 - iOS app-switch/background limitations for continuous mirroring.
 - Real-device behavior of the Tauri/native Spotify bridge.
@@ -246,11 +281,12 @@ Preliminary review only. The project is intentionally designed around metadata/s
 
 ## Next implementation milestone
 
-1. Keep the legacy Spicetify proof of concept usable while replacement development continues.
-2. Treat the approved stateful **▷ Track Mirror / ⇄ Track Mirror** control, single glyph+label click/tap target, prominent state cue, and self-dismissing quick-control behavior as acceptance criteria for every new platform UI.
-3. Obtain/register Track Mirror's Spotify developer application identity and callback configuration without introducing a client secret into the app.
-4. Generate/build the Tauri Android project, fetch Spotify Android App Remote through the repository script, and compile the Kotlin plugin.
-5. Run the first physical Android-device test: configure Spotify, authorize, arm, baseline one URI, inject a changed second URI, and confirm the follower's Spotify app plays it.
-6. Develop the replacement Linux Rust/Tauri path in parallel using the same shared architecture and the approved cross-platform UI requirements.
-7. On a Mac/Xcode environment, build the same Tauri/Rust core with the Swift plugin and repeat the equivalent iOS physical-device test.
-8. Only after follower playback paths are validated, add the replaceable source-to-follower transport.
+1. Validate the lightweight phone remote-control MVP against the live Spicetify desktop build: phone displays the desktop friend list, switches the selected friend, and stops following.
+2. Keep the legacy Spicetify proof of concept usable while replacement development continues.
+3. Move the proven remote-control semantics behind the canonical Rust/Tauri desktop host so the same phone controller can survive removal of the transitional Spicetify bridge.
+4. Treat the approved stateful **▷ Track Mirror / ⇄ Track Mirror** control, single glyph+label click/tap target, prominent state cue, and self-dismissing quick-control behavior as acceptance criteria for every new platform UI.
+5. Obtain/register Track Mirror's Spotify developer application identity and callback configuration without introducing a client secret into the app.
+6. Generate/build the Tauri Android project, fetch Spotify Android App Remote through the repository script, and compile the Kotlin plugin.
+7. Run the first physical Android-device playback test: configure Spotify, authorize, arm, baseline one URI, inject a changed second URI, and confirm the follower's Spotify app plays it.
+8. Develop the replacement Linux Rust/Tauri path in parallel using the same shared architecture and the approved cross-platform UI requirements.
+9. On a Mac/Xcode environment, build the same Tauri/Rust core with the Swift plugin and repeat the equivalent iOS physical-device test.
