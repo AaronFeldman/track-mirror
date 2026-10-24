@@ -12,6 +12,7 @@ EXTENSION_NAMES=(
   "track-mirror-friend-activity.js"
   "track-mirror-dom-uri-probe.js"
   "track-mirror-playback.js"
+  "track-mirror-remote-bridge.js"
 )
 
 log() { printf '[Track Mirror] %s\n' "$*"; }
