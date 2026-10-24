@@ -8,6 +8,9 @@ on:
       - 'plugins/**'
       - 'src-tauri/**'
       - 'ui/**'
+      - 'remote/**'
+      - 'scripts/**'
+      - 'spicetify/**'
       - '.github/workflows/rust.yml'
   pull_request:
     paths:
@@ -16,6 +19,9 @@ on:
       - 'plugins/**'
       - 'src-tauri/**'
       - 'ui/**'
+      - 'remote/**'
+      - 'scripts/**'
+      - 'spicetify/**'
       - '.github/workflows/rust.yml'
 
 jobs:
@@ -47,3 +53,18 @@ jobs:
             librsvg2-dev
       - name: Check Tauri shell and playback plugin Rust bridge
         run: cargo check -p track-mirror-app
+
+  remote-bridge-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check remote bridge scripts
+        run: |
+          python3 -m py_compile scripts/track-mirror-remote-server.py
+          node --check spicetify/track-mirror-remote-bridge.js
+          bash -n \
+            scripts/track-mirror-launch.sh \
+            scripts/track-mirror-remote-info.sh \
+            scripts/install-desktop-launcher.sh \
+            scripts/install-track-mirror.sh \
+            scripts/restore-spotify.sh
