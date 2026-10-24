@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#121212" />
+  <title>Track Mirror Remote</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #121212; color: #fff; min-height: 100vh; }
+    main { width: min(680px, 100%); margin: 0 auto; padding: 24px 18px 40px; }
+    h1 { margin: 0 0 4px; font-size: 28px; }
+    .sub { color: #b3b3b3; margin-bottom: 22px; }
+    .card { background: #1e1e1e; border: 1px solid #303030; border-radius: 18px; padding: 16px; margin-bottom: 16px; }
+    .status { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .state { font-size: 19px; font-weight: 750; }
+    .muted { color: #a7a7a7; font-size: 13px; }
+    .friends { display: grid; gap: 10px; margin-top: 12px; }
+    button, input { font: inherit; }
+    button { width: 100%; border: 0; border-radius: 999px; padding: 13px 16px; font-weight: 750; cursor: pointer; }
+    .follow { background: #fff; color: #111; text-align: left; }
+    .follow.active { background: #1ed760; color: #071b0d; }
+    .stop { background: #343434; color: #fff; border: 1px solid #555; margin-top: 14px; }
+    .token-row { display: flex; gap: 8px; margin-top: 10px; }
+    input { flex: 1; min-width: 0; background: #111; border: 1px solid #555; border-radius: 10px; padding: 11px 12px; color: #fff; }
+    .save { width: auto; background: #1ed760; color: #071b0d; border-radius: 10px; }
+    .hidden { display: none; }
+    .error { color: #ff9b9b; margin-top: 8px; font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Track Mirror</h1>
+  <div class="sub">Remote follow control</div>
+
+  <section id="pairing" class="card hidden">
+    <strong>Pair this phone</strong>
+    <div class="muted">Enter the token shown by the Track Mirror desktop.</div>
+    <div class="token-row">
+      <input id="token" type="password" autocomplete="off" placeholder="Pairing token" />
+      <button id="save-token" class="save">Save</button>
+    </div>
+    <div id="pair-error" class="error"></div>
+  </section>
+
+  <section class="card">
+    <div class="status">
+      <div>
+        <div id="state" class="state">Connecting…</div>
+        <div id="detail" class="muted"></div>
+      </div>
+      <div id="glyph" style="font-size:30px">▷</div>
+    </div>
+    <button id="stop" class="stop">Stop following</button>
+  </section>
+
+  <section class="card">
+    <strong>Follow</strong>
+    <div id="friends" class="friends"><div class="muted">Waiting for desktop friend list…</div></div>
+  </section>
+</main>
+<script>
+(() => {
+  const TOKEN_KEY = "track-mirror:remote-token";
+  const query = new URLSearchParams(location.search);
+  const queryToken = query.get("token");
+  if (queryToken) {
+    localStorage.setItem(TOKEN_KEY, queryToken);
+    history.replaceState({}, "", location.pathname);
+  }
+
+  const pairing = document.getElementById("pairing");
+  const tokenInput = document.getElementById("token");
+  const pairError = document.getElementById("pair-error");
+  const stateEl = document.getElementById("state");
+  const detailEl = document.getElementById("detail");
+  const glyphEl = document.getElementById("glyph");
+  const friendsEl = document.getElementById("friends");
+  const stopButton = document.getElementById("stop");
+
+  function token() { return localStorage.getItem(TOKEN_KEY) || ""; }
+
+  async function api(path, options = {}) {
+    const headers = new Headers(options.headers || {});
+    const value = token();
+    if (value) headers.set("X-Track-Mirror-Token", value);
+    if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    const response = await fetch(path, { ...options, headers, cache: "no-store" });
+    if (response.status === 401) {
+      pairing.classList.remove("hidden");
+      throw new Error("Pairing token required");
+    }
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Request failed (${response.status})`);
+    }
+    pairing.classList.add("hidden");
+    pairError.textContent = "";
+    return response.json();
+  }
+
+  function render(data) {
+    const enabled = Boolean(data.enabled);
+    const selected = data.selected_friend || null;
+    glyphEl.textContent = enabled ? "⇄" : "▷";
+    stateEl.textContent = enabled && selected ? `Following ${selected}` : "Following is off";
+    detailEl.textContent = data.updated_at ? "Desktop connected" : "Waiting for Spotify desktop";
+    stopButton.disabled = !enabled;
+
+    const friends = Array.isArray(data.friends) ? data.friends : [];
+    friendsEl.replaceChildren();
+    if (!friends.length) {
+      const empty = document.createElement("div");
+      empty.className = "muted";
+      empty.textContent = "Waiting for Spotify Listening Activity…";
+      friendsEl.appendChild(empty);
+      return;
+    }
+
+    for (const friend of friends) {
+      const button = document.createElement("button");
+      const active = enabled && selected && friend.toLowerCase() === selected.toLowerCase();
+      button.className = `follow${active ? " active" : ""}`;
+      button.textContent = active ? `⇄ ${friend}` : `▷ ${friend}`;
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          await api("/api/follow", { method: "POST", body: JSON.stringify({ friend }) });
+          await refresh();
+        } catch (error) {
+          pairError.textContent = error.message;
+        } finally {
+          button.disabled = false;
+        }
+      });
+      friendsEl.appendChild(button);
+    }
+  }
+
+  async function refresh() {
+    try {
+      render(await api("/api/state"));
+    } catch (error) {
+      if (!token()) pairing.classList.remove("hidden");
+      detailEl.textContent = error.message;
+    }
+  }
+
+  document.getElementById("save-token").addEventListener("click", async () => {
+    const value = tokenInput.value.trim();
+    if (!value) return;
+    localStorage.setItem(TOKEN_KEY, value);
+    tokenInput.value = "";
+    await refresh();
+  });
+
+  stopButton.addEventListener("click", async () => {
+    stopButton.disabled = true;
+    try {
+      await api("/api/stop", { method: "POST", body: "{}" });
+      await refresh();
+    } catch (error) {
+      pairError.textContent = error.message;
+    } finally {
+      stopButton.disabled = false;
+    }
+  });
+
+  refresh();
+  setInterval(refresh, 1200);
+})();
+</script>
+</body>
+</html>
