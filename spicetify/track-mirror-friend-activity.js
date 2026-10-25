@@ -133,8 +133,11 @@
       });
     }
 
-    const uniqueLinked = Array.from(new Set(linkedRows));
-    return uniqueLinked.length ? uniqueLinked : textCandidateRows(roots);
+    // Fail closed. Arbitrary Spotify text containing words such as "now" must
+    // never be promoted to a friend observation. If Spotify no longer exposes a
+    // positively linked Listening Activity row, report no observation rather
+    // than guessing and feeding bogus identities into the mirroring engine.
+    return Array.from(new Set(linkedRows));
   }
 
   function guessFriendName(rawText) {
