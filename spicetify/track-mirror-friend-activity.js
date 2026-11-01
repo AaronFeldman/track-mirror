@@ -1,8 +1,11 @@
 (function trackMirrorFriendActivity() {
   const PREFIX = "[Track Mirror]";
   const STORAGE_KEY = "track-mirror:last-observations";
-  const SCAN_DEBOUNCE_MS = 200;
+  const SCAN_THROTTLE_MS = 200;
+  const STARTUP_RETRY_MS = 1000;
+  const STARTUP_RETRY_LIMIT = 30;
   let scanTimer = null;
+  let startupRetryTimer = null;
 
   function log(...args) {
     console.log(PREFIX, ...args);
@@ -227,9 +230,42 @@
     return observations;
   }
 
+  // Throttle rather than debounce. Spotify can mutate the DOM continuously;
+  // repeatedly resetting the timer can otherwise starve Track Mirror of scans.
   function scheduleScan() {
-    clearTimeout(scanTimer);
-    scanTimer = setTimeout(scan, SCAN_DEBOUNCE_MS);
+    if (scanTimer !== null) return;
+    scanTimer = setTimeout(() => {
+      scanTimer = null;
+      scan();
+    }, SCAN_THROTTLE_MS);
+  }
+
+  // Spotify may inject Listening Activity after this extension has already
+  // loaded. Retry the initial discovery until a positively linked row appears,
+  // but stop after a bounded interval so we do not poll forever when the panel
+  // is unavailable or the user has no visible friend activity.
+  function startStartupRetry() {
+    let attempts = 0;
+
+    function retry() {
+      startupRetryTimer = null;
+      attempts += 1;
+      const observations = scan();
+
+      if (observations.length > 0) {
+        log("Startup discovery recovered after", attempts, "retry scan(s)");
+        return;
+      }
+
+      if (attempts >= STARTUP_RETRY_LIMIT) {
+        log("Startup discovery retry limit reached; mutation observer remains active");
+        return;
+      }
+
+      startupRetryTimer = setTimeout(retry, STARTUP_RETRY_MS);
+    }
+
+    startupRetryTimer = setTimeout(retry, STARTUP_RETRY_MS);
   }
 
   function start() {
@@ -240,7 +276,6 @@
 
     document.getElementById("track-mirror-status-badge")?.remove();
     log("Listening activity discovery adapter loaded");
-    scan();
 
     const observer = new MutationObserver(scheduleScan);
     observer.observe(document.body, {
@@ -248,6 +283,9 @@
       subtree: true,
       characterData: true,
     });
+
+    const initialObservations = scan();
+    if (initialObservations.length === 0) startStartupRetry();
 
     window.TrackMirrorFriendActivity = {
       scan,
