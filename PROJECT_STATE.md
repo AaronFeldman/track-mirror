@@ -261,6 +261,10 @@ The proof-of-concept UI is also the current reference implementation for the cro
 
 Recovered October 28 static APK analysis shows an obfuscated presence-subscription processing path: `p.n5c0.a(String)` creates a `SubscribePresenceRequest.PusherChannel`; `p.iz10.o` calls `p.d4c0.f` and processes a `PresenceResponse` containing `UserActivity` records via `p.n5c0.b`. The exact descriptive class `ListeningActivityPresenceDaemon` was absent from the class index, but that is not proof the feature is absent. Live availability, authorization, channel identifier provenance, and field-to-track mapping remain unverified. See `docs/ANDROID_LISTENING_ACTIVITY_RESEARCH.md`. This exploratory lead does **not** displace the working Linux proof of concept or phone-remote priority.
 
+### Cloud comparative test (November 19, 2026)
+
+A cloud GitHub Actions job on draft research PR #3 downloaded a public XAPK variant of Spotify Android 9.1.92.3058. Its extracted base APK SHA-256 `bf9ae85fee0e7b4a3ba07e444288dc88003381f865dff5475dad266835858dba` differs from the archived original `c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928`. A comparative JADX run created sources for `p.n5c0`, `p.d4c0`, `p.iz10`, and `p.w2c0`, with errors reported for the last two; the presence request and UserActivity mapper symbols persist. No live user activity source or third-party API access was established. Details: `docs/ANDROID_LISTENING_ACTIVITY_RESEARCH.md`. Desktop/Tailscale untouched.
+
 ## Open technical questions
 
 - Migration of the phone remote-control transport from the transitional Spicetify bridge into the canonical Rust/Tauri host.
