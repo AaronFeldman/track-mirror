@@ -1,0 +1,88 @@
+name: Spotify Android presence static probe (research)
+
+on:
+  push:
+    branches:
+      - research/android-presence-cloud-2026-11
+    paths:
+      - .github/workflows/android-presence-cloud.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Retrieve published APK variant and verify research fingerprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/apk"
+          EXPECTED="c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928"
+          for ABI in arm64-v8a armeabi-v7a; do
+            echo "Checking public XAPK variant: $ABI"
+            LINK="https://d.apkpure.net/b/XAPK/com.spotify.music?nc=$ABI&sv=24&versionCode=147346334"
+            if ! curl -fL --retry 2 --connect-timeout 20 --max-time 420 "$LINK" -o "$RUNNER_TEMP/apk/spotify.xapk"; then
+              echo "Download failed for $ABI"
+              continue
+            fi
+            MEMBER="$(unzip -Z1 "$RUNNER_TEMP/apk/spotify.xapk" 2>/dev/null | grep -E '(^|/)(base|com\.spotify\.music)\.apk$' | head -n 1 || true)"
+            if [[ -z "$MEMBER" ]]; then
+              echo "Archive missing identifiable base APK; continuing."
+              continue
+            fi
+            unzip -p "$RUNNER_TEMP/apk/spotify.xapk" "$MEMBER" > "$RUNNER_TEMP/apk/base.apk"
+            ACTUAL="$(sha256sum "$RUNNER_TEMP/apk/base.apk" | cut -d' ' -f1)"
+            echo "Extracted $MEMBER, SHA256=$ACTUAL"
+            if [[ "$ACTUAL" == "$EXPECTED" ]]; then
+              echo "Exact fingerprint match for $ABI."
+              echo "APK_FILE=$RUNNER_TEMP/apk/base.apk" >> "$GITHUB_ENV"
+              echo "APK_VARIANT=$ABI" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "::error::No downloaded variant matched the archived original fingerprint. No unrelated APK was decompiled."
+          exit 1
+      - name: Install standalone JADX CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 2 --connect-timeout 20 --max-time 180 \
+            'https://github.com/skylot/jadx/releases/download/v1.5.6/jadx-1.5.6.zip' \
+            -o "$RUNNER_TEMP/jadx.zip"
+          mkdir -p "$RUNNER_TEMP/jadx"
+          unzip -q "$RUNNER_TEMP/jadx.zip" -d "$RUNNER_TEMP/jadx"
+          echo "$RUNNER_TEMP/jadx/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/jadx/bin/jadx" --version
+      - name: Run targeted, read-only presence inspection
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/inspect-spotify-presence.sh "$APK_FILE"
+          echo '--- Sanitized source symbol summary ---'
+          ROOT="$HOME/track-mirror-research/spotify-apk/9.1.92.3058_147346334/presence-probe"
+          for CLASS in p.n5c0 p.d4c0 p.iz10 p.w2c0; do
+            FILE="$ROOT/$CLASS.java"
+            if [[ -f "$FILE" ]]; then
+              echo "[$CLASS] file ready; bytes=$(wc -c < "$FILE")"
+              grep -E '^ *(public|private|protected|static|final|@).*(UserActivity|PresenceResponse|SubscribePresenceRequest|String|Spotify)' "$FILE" | head -n 16 || true
+            else
+              echo "[$CLASS] file missing"
+            fi
+          done
+          echo '--- Static identifiers (not values) ---'
+          grep -Eo 'com\.spotify\.listeningactivity\.v1\.[A-Za-z0-9_]+' "$ROOT"/p.n5c0.java | sort -u || true
+          echo '--- Finished; no APK or decompiled source uploaded. ---'
+      - name: Preserve short status only
+        if: always()
+        shell: bash
+        run: |
+          echo "Cloud research job finished. See step logs for APK SHA verification and four-class decompilation status." >> "$GITHUB_STEP_SUMMARY"
