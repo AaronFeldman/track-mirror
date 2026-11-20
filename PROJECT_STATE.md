@@ -269,6 +269,20 @@ A cloud GitHub Actions job on draft research PR #3 downloaded a public XAPK vari
 
 A second cloud run **44649820911** successfully generated and encrypted seven relevant classes from the separately fingerprinted public comparison APK, then saved the encrypted artifact privately in ChatGPT Library: `/Track Mirror/track-mirror-presence-fields-encrypted-source.zip`. The owner-held key and decryptor remain privately archived at `/Track Mirror/track-mirror-private-research-recovery.zip`. Decryption and archive integrity were independently verified. Static protobuf fields: `UserActivity.username`; `ListeningActivity.entity_uri`, `is_playing`, `timestamp`, optional `context_uri`. A mapping method transforms these into an optional timestamp in milliseconds, URI fields, and play status. This identifies the source *field*, not authorized live data access. See `docs/ANDROID_LISTENING_ACTIVITY_RESEARCH.md`.
 
+## Cloud-first Following event pipeline — November 19, 2026 (draft)
+
+**Human product direction:** Spotify's existing **Follow** relationship plus the source listener's enabled Listening Activity sharing constitutes the intended visibility context for Track Mirror. Do not add an extra consent prompt merely to read activity that the follower already sees in their own Spotify client. Still respect privacy settings, disappearing rows, and the distinction between visible activity and authorization to call proprietary private endpoints. Spotify's developer-policy and commercial restrictions remain a separate release assessment.
+
+Draft implementation in **PR #4**, branch `feature/follow-activity-event-pipeline`:
+
+- Existing `spicetify/track-mirror-dom-uri-probe.js` remains the source of exact track URIs visible in a followed user's Listening Activity.
+- Existing `spicetify/track-mirror-remote-bridge.js` additionally publishes the **selected** friend's observed track via a loopback-only `POST /api/event`; no Spotify private endpoint/OAuth call is introduced and the local working mirror logic is not replaced.
+- Existing Python desktop remote server adds paired `GET /api/event?after=N`; tracks are 90-second RAM-only metadata events; stop/switch clears the last event; source publishes are rejected if mirroring is off or the listener is not selected.
+- Rust `track-mirror-core/src/source.rs` normalizes visible activity into the existing portable `MirrorEvent` (no new conflicting event protocol). It does not fabricate pause state, position, or non-track entities.
+- Cloud tests: Rust normalizer and engine tests **passed**; HTTP and mock-Spicetify bridge tests **passed** after correcting a strict URI-regex anchor. Tauri compile check was still running at the time of this state entry. No live desktop/Android session was run and no working installation was changed.
+
+Four-goal handoff: `docs/FOLLOW_ACTIVITY_EVENT_PIPELINE.md` on the draft branch. The first private encrypted APK research archive and the expanded seven-class version remain preserved in the owner's ChatGPT Library. CI tests store only Track Mirror's authored source and synthetic test fixtures, never Spotify's decompiled source.
+
 ## Open technical questions
 
 - Migration of the phone remote-control transport from the transitional Spicetify bridge into the canonical Rust/Tauri host.
@@ -278,7 +292,7 @@ A second cloud run **44649820911** successfully generated and encrypted seven re
 - Spotify developer-app registration details, including Android signing fingerprint and Apple bundle configuration.
 - Timing, seek-position, pause/resume, and drift-correction behavior beyond the first track-change milestone.
 - Fallback behavior when the exact track is unavailable in the follower's market/account.
-- Authentication/consent model for following another listener.
+- Authorization and platform-policy limits for third-party use of Spotify's private endpoints; no extra consent prompt is needed simply to observe the source user's enabled activity that is already visible to the follower.
 - New Linux Rust/Tauri source/playback adapter details and migration criteria from the Spicetify proof of concept.
 - Windows 11 and macOS source/playback adapters.
 - Whether the current desktop Listening Activity DOM remains stable across Spotify updates while the proof of concept remains in use.
