@@ -1,153 +1,118 @@
-name: Spotify Android presence static probe (research)
+name: Spotify Android listening activity research (encrypted archive)
 
 on:
   push:
-    branches:
-      - research/android-presence-cloud-2026-11
-    paths:
-      - .github/workflows/android-presence-cloud.yml
-  pull_request:
-    branches: [main]
-    paths:
-      - .github/workflows/android-presence-cloud.yml
+    branches: [research/android-presence-cloud-2026-11]
+    paths: [.github/workflows/android-presence-cloud.yml]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  inspect:
+  preserve:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
-      - name: Retrieve published APK variant and verify research fingerprint
+      - name: Retrieve and fingerprint public comparison APK
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/apk"
-          echo "Cloud probe on $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$RUNNER_TEMP/cloud-status.txt"
-          echo "Expected SHA256: c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928" >> "$RUNNER_TEMP/cloud-status.txt"
-          EXPECTED="c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928"
-          PUBLIC_VARIANT="bf9ae85fee0e7b4a3ba07e444288dc88003381f865dff5475dad266835858dba"
-          for ABI in arm64-v8a armeabi-v7a; do
-            echo "Checking public XAPK variant: $ABI"
-            LINK="https://d.apkpure.net/b/XAPK/com.spotify.music?nc=$ABI&sv=24&versionCode=147346334"
-            if ! curl -fL --retry 2 --connect-timeout 20 --max-time 420 "$LINK" -o "$RUNNER_TEMP/apk/spotify.xapk"; then
-              echo "Download failed for $ABI"
-              continue
-            fi
-            MEMBER="$(unzip -Z1 "$RUNNER_TEMP/apk/spotify.xapk" 2>/dev/null | grep -E '(^|/)(base|com\.spotify\.music)\.apk$' | head -n 1 || true)"
-            if [[ -z "$MEMBER" ]]; then
-              echo "Archive missing identifiable base APK; continuing."
-              continue
-            fi
-            unzip -p "$RUNNER_TEMP/apk/spotify.xapk" "$MEMBER" > "$RUNNER_TEMP/apk/base.apk"
-            ACTUAL="$(sha256sum "$RUNNER_TEMP/apk/base.apk" | cut -d' ' -f1)"
-            echo "Extracted $MEMBER, SHA256=$ACTUAL"
-            echo "$ABI: $MEMBER $ACTUAL" >> "$RUNNER_TEMP/cloud-status.txt"
-            if [[ "$ACTUAL" == "$EXPECTED" ]]; then
-              echo "Exact fingerprint match for $ABI."
-              echo "MATCH: $ABI" >> "$RUNNER_TEMP/cloud-status.txt"
-              echo "APK_FILE=$RUNNER_TEMP/apk/base.apk" >> "$GITHUB_ENV"
-              echo "APK_VARIANT=$ABI" >> "$GITHUB_ENV"
-              echo "APK_PROVENANCE=exact_archived" >> "$GITHUB_ENV"
-              exit 0
-            fi
-            if [[ "$ACTUAL" == "$PUBLIC_VARIANT" ]]; then
-              echo "::warning::Same public Spotify versionCode but DIFFERENT APK fingerprint; treating as separate research sample."
-              echo "PUBLIC_VARIANT_DIFFERENT_FROM_ARCHIVED: $ABI" >> "$RUNNER_TEMP/cloud-status.txt"
-              echo "APK_FILE=$RUNNER_TEMP/apk/base.apk" >> "$GITHUB_ENV"
-              echo "APK_PROVENANCE=public_variant_different_sha" >> "$GITHUB_ENV"
-              exit 0
-            fi
-          done
-          echo "No variant matched the archived fingerprint; decompilation not attempted." >> "$RUNNER_TEMP/cloud-status.txt"
-          echo "::error::No downloaded variant matched the archived original fingerprint. No unrelated APK was decompiled."
-          exit 1
-      - name: Install standalone JADX CLI
+          curl -fsSL --retry 2 --connect-timeout 20 --max-time 420 \
+            'https://d.apkpure.net/b/XAPK/com.spotify.music?nc=arm64-v8a&sv=24&versionCode=147346334' \
+            -o "$RUNNER_TEMP/apk/spotify.xapk"
+          MEMBER="$(unzip -Z1 "$RUNNER_TEMP/apk/spotify.xapk" | grep -E '(^|/)(base|com\.spotify\.music)\.apk$' | head -n 1)"
+          test -n "$MEMBER"
+          unzip -p "$RUNNER_TEMP/apk/spotify.xapk" "$MEMBER" > "$RUNNER_TEMP/apk/base.apk"
+          SHA="$(sha256sum "$RUNNER_TEMP/apk/base.apk" | cut -d' ' -f1)"
+          echo "Comparison APK sha256: $SHA"
+          test "$SHA" = bf9ae85fee0e7b4a3ba07e444288dc88003381f865dff5475dad266835858dba
+          echo "APK_FILE=$RUNNER_TEMP/apk/base.apk" >> "$GITHUB_ENV"
+          echo "APK_SHA=$SHA" >> "$GITHUB_ENV"
+      - name: Install JADX CLI and encryption dependencies
         shell: bash
         run: |
           set -euo pipefail
-          curl -fL --retry 2 --connect-timeout 20 --max-time 180 \
-            'https://github.com/skylot/jadx/releases/download/v1.5.6/jadx-1.5.6.zip' \
-            -o "$RUNNER_TEMP/jadx.zip"
-          mkdir -p "$RUNNER_TEMP/jadx"
+          curl -fsSL --retry 2 --connect-timeout 20 --max-time 180 \
+            'https://github.com/skylot/jadx/releases/download/v1.5.6/jadx-1.5.6.zip' -o "$RUNNER_TEMP/jadx.zip"
           unzip -q "$RUNNER_TEMP/jadx.zip" -d "$RUNNER_TEMP/jadx"
           echo "$RUNNER_TEMP/jadx/bin" >> "$GITHUB_PATH"
-          "$RUNNER_TEMP/jadx/bin/jadx" --version
-      - name: Run targeted, read-only presence inspection
+          python -m pip install --user 'cryptography>=43,<47'
+      - name: Isolate and preserve four decompiled class files and logs
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${APK_PROVENANCE:-}" == "exact_archived" ]]; then
-            bash scripts/inspect-spotify-presence.sh "$APK_FILE"
-          else
-            ROOT="$HOME/track-mirror-research/spotify-apk/9.1.92.3058_147346334/presence-probe"
-            mkdir -p "$ROOT"
-            ERRORS=0
-            for CLASS in p.n5c0 p.d4c0 p.iz10 p.w2c0; do
-              if ! jadx --no-res --show-bad-code -j 2 --single-class "$CLASS" --single-class-output "$ROOT/$CLASS.java" "$APK_FILE" > "$ROOT/$CLASS.log" 2>&1; then
-                echo "$CLASS failed: $(tail -n 3 "$ROOT/$CLASS.log")"
-                ERRORS=$((ERRORS+1))
-              fi
-            done
-            echo "Unmatched source fingerprint. Classes failing: $ERRORS" >> "$RUNNER_TEMP/cloud-status.txt"
-          fi
-          echo "Decompilation completed" >> "$RUNNER_TEMP/cloud-status.txt"
-          echo '--- Sanitized source symbol summary ---'
-          ROOT="$HOME/track-mirror-research/spotify-apk/9.1.92.3058_147346334/presence-probe"
+          ROOT="$RUNNER_TEMP/presence"
+          mkdir -p "$ROOT"
           for CLASS in p.n5c0 p.d4c0 p.iz10 p.w2c0; do
-            FILE="$ROOT/$CLASS.java"
-            if [[ -f "$FILE" ]]; then
-              echo "[$CLASS] file ready; bytes=$(wc -c < "$FILE")"
-              echo "CLASS $CLASS: decompiled; bytes=$(wc -c < "$FILE")" >> "$RUNNER_TEMP/cloud-status.txt"
-              grep -E '^ *(public|private|protected|static|final|@).*(UserActivity|PresenceResponse|SubscribePresenceRequest|String|Spotify)' "$FILE" | head -n 16 || true
-            else
-              echo "[$CLASS] file missing"
-              echo "CLASS $CLASS: missing" >> "$RUNNER_TEMP/cloud-status.txt"
-            fi
+            echo "Decompiling $CLASS"
+            jadx --no-res --show-bad-code -j 2 --single-class "$CLASS" \
+              --single-class-output "$ROOT/$CLASS.java" "$APK_FILE" > "$ROOT/$CLASS.log" 2>&1 || true
+            test -s "$ROOT/$CLASS.java"
+            printf '%s %s bytes\n' "$CLASS" "$(wc -c < "$ROOT/$CLASS.java")"
           done
-          echo '--- Static identifiers (not values) ---'
-          grep -Eo 'com\.spotify\.listeningactivity\.v1\.[A-Za-z0-9_]+' "$ROOT"/p.n5c0.java | sort -u || true
-          echo '--- Finished; no APK or decompiled source uploaded. ---'
-      - name: Preserve short status only
-        if: always()
-        shell: bash
-        run: |
-          echo "Cloud research job finished. See step logs for APK SHA verification and four-class decompilation status." >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Commit nonproprietary run status on research branch
-        if: always()
-        shell: bash
-        run: |
-          set -eu
-          TARGET="docs/CLOUD_ANDROID_PRESENCE_RESULT.md"
           {
-            echo "# Cloud Android Listening Activity probe result"
-            echo
-            echo "This is an ephemeral GitHub Actions investigation, not a local desktop test."
-            echo
-            if [[ -f "$RUNNER_TEMP/cloud-status.txt" ]]; then
-              cat "$RUNNER_TEMP/cloud-status.txt"
-            else
-              echo "Cloud runner stopped before APK retrieval, or the job did not start."
-            fi
-            echo
-            echo "Only metadata and SHA fingerprints are saved here. No APK or decompiled Spotify source is checked in."
-          } > "$TARGET"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add "$TARGET"
-          if ! git diff --cached --quiet; then
-            git commit -m 'Record Android presence cloud probe status'
-            git fetch origin research/android-presence-cloud-2026-11
-            git rebase FETCH_HEAD
-            git push origin HEAD:research/android-presence-cloud-2026-11
-          fi
+            echo 'Spotify Android 9.1.92.3058 / 147346334'
+            echo "APK SHA256: $APK_SHA"
+            echo 'This is a public comparison APK, NOT the original archived APK.'
+            echo 'Original SHA256: c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928'
+            echo 'JADX version: 1.5.6'
+            echo 'Source: four isolated classes; no original APK stored'
+          } > "$ROOT/MANIFEST.txt"
+          tar -C "$ROOT" -czf "$RUNNER_TEMP/presence-source.tar.gz" .
+      - name: Encrypt research archive using owner-controlled public key
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/research-public.pem" <<'PUBLICKEY'
+-----BEGIN PUBLIC KEY-----
+MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAyaAwVzi+2I7b56KOo7e9
+i8H1smaSnqhmUYYgOT7KBEDzcXKl+i8zlDGNef2BsGvKVsa8J2IErEBJj+tICOfJ
+giJbQdYwLe5ddqFA5NS8Kt63iiT6dL/GeRCn1eCeuRRnMdkzyZ/VJ8GkqQzahAs3
+rgNkNA7lrhDIXOU3p+YFunOykdwyFxO4UQbDPB5wmiiMTC2W//zQILqaaqfbKbsv
+el8BrSKpiRjWyYm+GXBo4CQjBEHVMZ4++iuubbzhzPjLxE85S2fIolUOryk03RKt
+ukNMnjyjBKjgnFd4xMv1X1Cz6m5s6Skq0ZZxRYJINe0BsLp4JLZRy5eR/Cgf1ola
+XXwogPSxeVS5IMbevfC2ji2p3ZfcgaIcQDpQGg4v9Q9OhWCQPzrqAzxibBTZCOQ8
+JE3neifAEho/T2wvt/pNTEAzlYdY9lG3Jyna+PAVsKDJDuzioGRmoo47ffBqJmBv
+ewC3f3vTSGZPhnUxfap7iQlqe3VGGottR2PVxB0yyg/XAgMBAAE=
+-----END PUBLIC KEY-----
+PUBLICKEY
+          python - <<'PY'
+          import os, json, base64, hashlib, pathlib
+          from cryptography.hazmat.primitives import hashes, serialization
+          from cryptography.hazmat.primitives.asymmetric import padding
+          from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+          tmp = pathlib.Path(os.environ["RUNNER_TEMP"])
+          data = (tmp / "presence-source.tar.gz").read_bytes()
+          public = serialization.load_pem_public_key((tmp / "research-public.pem").read_bytes())
+          secret = AESGCM.generate_key(bit_length=256)
+          nonce = os.urandom(12)
+          aad = b"track-mirror/spotify-android-presence/9.1.92.3058/public-variant"
+          encrypted = AESGCM(secret).encrypt(nonce, data, aad)
+          wrapped = public.encrypt(secret, padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+          b64 = lambda b: base64.b64encode(b).decode("ascii")
+          payload = dict(format="track-mirror-encrypted-archive-v1", algorithm="AES-256-GCM+RSA-OAEP-SHA256",
+                         aad=b64(aad), nonce=b64(nonce), encrypted_key=b64(wrapped),
+                         ciphertext=b64(encrypted), plaintext_sha256=hashlib.sha256(data).hexdigest())
+          (tmp / "track-mirror-presence.encrypted.json").write_text(json.dumps(payload,sort_keys=True)+"\n")
+          print("Encrypted archive retained; SHA-256 of source tar:",payload["plaintext_sha256"])
+          PY
+      - name: Upload encrypted archive only
+        uses: actions/upload-artifact@v4
+        with:
+          name: track-mirror-presence-encrypted-source
+          path: ${{ runner.temp }}/track-mirror-presence.encrypted.json
+          retention-days: 90
+          if-no-files-found: error
+      - name: Explain archival status
+        if: always()
+        shell: bash
+        run: |
+          echo 'Research files are kept only in a public-key-encrypted workflow artifact. Do NOT upload plaintext source to a public repo.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The owner must separately preserve the private decryption key and artifact; GitHub artifact retention is limited.' >> "$GITHUB_STEP_SUMMARY"
