@@ -6,6 +6,10 @@ on:
       - research/android-presence-cloud-2026-11
     paths:
       - .github/workflows/android-presence-cloud.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/android-presence-cloud.yml
   workflow_dispatch:
 
 permissions:
@@ -17,6 +21,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
