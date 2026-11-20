@@ -1,6 +1,6 @@
 # Track Mirror — Canonical Project State
 
-Last updated: 2026-10-24
+Last updated: 2026-11-19
 
 ## Core concept
 
@@ -256,6 +256,10 @@ The proof-of-concept UI is also the current reference implementation for the cro
 21. `docs/UI_REFERENCE.md` is the canonical cross-platform visual/interaction reference, derived from the approved working Spicetify control implementation.
 22. The desktop/server is the authoritative holder of active follow state for remote-control use; phones/tablets may act as lightweight controllers that switch targets or stop following without duplicating the desktop source-observation stack.
 23. The phone remote-control MVP is prioritized ahead of completing the full native Android application, but its transitional Spicetify transport must remain replaceable by the canonical Rust/Tauri host transport.
+
+## Android Listening Activity static research — 2026-11-19
+
+Recovered October 28 static APK analysis shows an obfuscated presence-subscription processing path: `p.n5c0.a(String)` creates a `SubscribePresenceRequest.PusherChannel`; `p.iz10.o` calls `p.d4c0.f` and processes a `PresenceResponse` containing `UserActivity` records via `p.n5c0.b`. The exact descriptive class `ListeningActivityPresenceDaemon` was absent from the class index, but that is not proof the feature is absent. Live availability, authorization, channel identifier provenance, and field-to-track mapping remain unverified. See `docs/ANDROID_LISTENING_ACTIVITY_RESEARCH.md`. This exploratory lead does **not** displace the working Linux proof of concept or phone-remote priority.
 
 ## Open technical questions
 
