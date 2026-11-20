@@ -1,3 +1,5 @@
+pub mod source;
+
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
