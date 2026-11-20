@@ -50,7 +50,7 @@ jobs:
           set -euo pipefail
           ROOT="$RUNNER_TEMP/presence"
           mkdir -p "$ROOT"
-          for CLASS in p.n5c0 p.d4c0 p.iz10 p.w2c0; do
+          for CLASS in p.n5c0 p.d4c0 p.iz10 p.w2c0 p.v2c0 com.spotify.listeningactivity.v1.ListeningActivity com.spotify.listeningactivity.v1.UserActivity; do
             echo "Decompiling $CLASS"
             jadx --no-res --show-bad-code -j 2 --single-class "$CLASS" \
               --single-class-output "$ROOT/$CLASS.java" "$APK_FILE" > "$ROOT/$CLASS.log" 2>&1 || true
@@ -63,7 +63,7 @@ jobs:
             echo 'This is a public comparison APK, NOT the original archived APK.'
             echo 'Original SHA256: c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928'
             echo 'JADX version: 1.5.6'
-            echo 'Source: four isolated classes; no original APK stored'
+            echo 'Source: seven isolated classes; no original APK stored'
           } > "$ROOT/MANIFEST.txt"
           tar -C "$ROOT" -czf "$RUNNER_TEMP/presence-source.tar.gz" .
       - name: Encrypt research archive using owner-controlled public key
@@ -106,7 +106,7 @@ jobs:
       - name: Upload encrypted archive only
         uses: actions/upload-artifact@v4
         with:
-          name: track-mirror-presence-encrypted-source
+          name: track-mirror-presence-fields-encrypted-source
           path: ${{ runner.temp }}/track-mirror-presence.encrypted.json
           retention-days: 90
           if-no-files-found: error
