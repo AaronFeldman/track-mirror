@@ -85,3 +85,15 @@ When the desktop is accessible again, install the changed Spicetify extension an
 - The working desktop Spicetify DOM path already extracts an exact track URI from visible Following rows without OCR; it is the source for this implementation.
 - No legal conclusion about Spotify's commercial terms or streaming-policy compliance is made by the existence of a source adapter.
 - This branch is additive and deliberately isolated from the working desktop installation until reviewed and tested.
+
+## Completed cloud validation — 2026-11-19
+
+GitHub Actions [run 44653835861](https://github.com/AaronFeldman/track-mirror/actions/runs/44653835861) passed every job:
+
+- **Rust core test** — passed `cargo test -p track-mirror-core`, including observed-following normalization, invalid/non-track handling, baseline, deduplication.
+- **Remote bridge check** — passed the Python HTTP endpoint tests, mocked Spicetify event producer, remote HTML inline script syntax, existing bash/Node/Python source checks.
+- **Tauri application check** — passed `cargo check -p track-mirror-app` after adding the required `serde_json` dependency and generating a **CI-only throwaway icon** to satisfy the existing macro's missing packaging resource. Production Tauri icons still require approved assets.
+
+All checks are synthetic/software builds; none prove a working live Spotify friend feed, availability of a third-party API, a physical Android Spotify App Remote bridge, or compliance for commercial playback mirroring. The draft PR is intentionally not merged into the working Linux proof of concept.
+
+The user explicitly chose the **already-followed/visible listening-activity route** rather than adding another consent prompt. The phone web controller can now show the latest fresh selected listener's exact track URI when the desktop bridge is eventually deployed and Spotify visibly supplies one. No audio or Spotify private API tokens are transferred.
