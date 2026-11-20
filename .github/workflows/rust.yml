@@ -51,6 +51,33 @@ jobs:
             libssl-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev
+      - name: Generate CI-only Tauri icon for Rust typechecking
+        run: |
+          python3 - <<'PY'
+          # The current repo does not yet contain its production Tauri icon.
+          # Generate a disposable valid RGBA PNG so macro expansion can check
+          # Rust code. This file exists only on the CI runner and is NOT
+          # committed or intended for packaging/release.
+          import pathlib
+          import struct
+          import zlib
+
+          def chunk(kind: bytes, data: bytes) -> bytes:
+              return (struct.pack(">I", len(data)) + kind + data
+                      + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF))
+
+          width = height = 64
+          rgba = bytes([80, 80, 80, 255])
+          raw = (b"\\x00" + rgba * width) * height
+          png = (b"\\x89PNG\\r\\n\\x1a\\n"
+                 + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+                 + chunk(b"IDAT", zlib.compress(raw))
+                 + chunk(b"IEND", b""))
+          dest = pathlib.Path("src-tauri/icons/icon.png")
+          dest.parent.mkdir(parents=True, exist_ok=True)
+          dest.write_bytes(png)
+          print(f"CI-only icon generated at {dest}")
+          PY
       - name: Check Tauri shell and playback plugin Rust bridge
         run: cargo check -p track-mirror-app
 
