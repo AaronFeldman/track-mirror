@@ -265,6 +265,10 @@ Recovered October 28 static APK analysis shows an obfuscated presence-subscripti
 
 A cloud GitHub Actions job on draft research PR #3 downloaded a public XAPK variant of Spotify Android 9.1.92.3058. Its extracted base APK SHA-256 `bf9ae85fee0e7b4a3ba07e444288dc88003381f865dff5475dad266835858dba` differs from the archived original `c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928`. A comparative JADX run created sources for `p.n5c0`, `p.d4c0`, `p.iz10`, and `p.w2c0`, with errors reported for the last two; the presence request and UserActivity mapper symbols persist. No live user activity source or third-party API access was established. Details: `docs/ANDROID_LISTENING_ACTIVITY_RESEARCH.md`. Desktop/Tailscale untouched.
 
+### Verified field mapping (November 19, 2026)
+
+A second cloud run **44649820911** successfully generated and encrypted seven relevant classes from the separately fingerprinted public comparison APK, then saved the encrypted artifact privately in ChatGPT Library: `/Track Mirror/track-mirror-presence-fields-encrypted-source.zip`. The owner-held key and decryptor remain privately archived at `/Track Mirror/track-mirror-private-research-recovery.zip`. Decryption and archive integrity were independently verified. Static protobuf fields: `UserActivity.username`; `ListeningActivity.entity_uri`, `is_playing`, `timestamp`, optional `context_uri`. A mapping method transforms these into an optional timestamp in milliseconds, URI fields, and play status. This identifies the source *field*, not authorized live data access. See `docs/ANDROID_LISTENING_ACTIVITY_RESEARCH.md`.
+
 ## Open technical questions
 
 - Migration of the phone remote-control transport from the transitional Spicetify bridge into the canonical Rust/Tauri host.
