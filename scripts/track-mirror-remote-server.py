@@ -24,7 +24,7 @@ from urllib.parse import parse_qs, urlsplit
 APP_NAME = "track-mirror"
 DEFAULT_PORT = 8765
 EVENT_TTL_MS = 90_000
-TRACK_URI_PATTERN = re.compile(r"spotify:track:[A-Za-z0-9]{22}\\Z")
+TRACK_URI_PATTERN = re.compile(r"spotify:track:[A-Za-z0-9]{22}\Z")
 SPOTIFY_ORIGINS = {
     "https://xpui.app.spotify.com",
     "https://open.spotify.com",
