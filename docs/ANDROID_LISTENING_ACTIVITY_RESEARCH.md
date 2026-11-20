@@ -40,3 +40,13 @@ The APK contains an actual request/response processing path for presence and lis
 ## Current engineering decision
 
 No new Android listening-activity integration is validated yet. Retain the desktop Spicetify adapter and the thin Android remote-controller priority; a static APK discovery is a research lead, **not** a reason to replace the working path.
+
+## Reproducible local probe
+
+On the Linux machine holding the archived APK, with `jadx` CLI on `PATH`, run:
+
+```sh
+bash scripts/inspect-spotify-presence.sh
+```
+
+The script verifies the SHA-256 fingerprint and then decompiles **only** `p.n5c0`, `p.d4c0`, `p.iz10`, and `p.w2c0` using JADX's `--single-class` option. Output remains at `~/track-mirror-research/spotify-apk/9.1.92.3058_147346334/presence-probe/`, outside the repository. The summary is `summary.txt`; class-level outputs and logs stay local. No network calls, authentication, APK changes, or Spotify playback actions are performed. The script's shell syntax and flow were verified with a fixture, **not** against the unavailable original APK.
