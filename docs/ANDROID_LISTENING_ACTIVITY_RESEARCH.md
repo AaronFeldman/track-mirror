@@ -82,3 +82,22 @@ The public Track Mirror repository contains the encryption workflow and high-lev
 **New direct static observation from the privately decrypted `p.n5c0` class**: its `b(UserActivity)` mapper extracts the listener `username` using `getUsername()`. When an activity payload is present, it constructs a second object holding (1) an optional timestamp converted to milliseconds from seconds and nanoseconds, plus (2) three additional values taken from nested activity getters, one optional depending on a presence flag. It then wraps username and the optional activity object in `p.w2c0`. This distinguishes **listener identity** and **activity availability** from yet-unresolved track metadata; the remaining getter meanings must be identified from `p.v2c0` and `ListeningActivity` before naming any one as a Spotify track URI.
 
 Next target: decompile `p.v2c0` and `com.spotify.listeningactivity.v1.ListeningActivity` from the **same comparison APK fingerprint**, then correlate the nested `UserActivity` getter types with its fields. Continue using private encrypted source archives rather than exposing proprietary code in the public repository.
+
+## Verified protobuf field semantics — seven-class cloud archive
+
+A second complete encrypted cloud workflow run (**44649820911**) produced encrypted Actions artifact **14590416943**, `track-mirror-presence-fields-encrypted-source`, requested retention through **2027-02-18**. It was independently downloaded, decrypted with the owner-held key, and hash-verified. The archive contains the original four isolated classes plus `p.v2c0`, `com.spotify.listeningactivity.v1.ListeningActivity`, and `com.spotify.listeningactivity.v1.UserActivity`, as well as their JADX logs and manifest. Fingerprint: comparison APK SHA-256 `bf9ae85fee0e7b4a3ba07e444288dc88003381f865dff5475dad266835858dba` (NOT the original archived base APK).
+
+Private archival copy: `/Track Mirror/track-mirror-presence-fields-encrypted-source.zip` in the owner's ChatGPT Library. The same separate owner-held decryption key in `/Track Mirror/track-mirror-private-research-recovery.zip` works. Neither readable decompiled classes nor a private key were committed to the public repository.
+
+**Direct observed protobuf field mapping:**
+
+- `UserActivity` has `USERNAME_FIELD_NUMBER = 1` and `ACTIVITY_FIELD_NUMBER = 2`.
+- `ListeningActivity` defines `ENTITY_URI_FIELD_NUMBER = 1`, `IS_PLAYING_FIELD_NUMBER = 2`, `TIMESTAMP_FIELD_NUMBER = 3`, `CONTEXT_URI_FIELD_NUMBER = 4`.
+- The observed `p.n5c0.b(UserActivity)` mapping extracts `username`, and, when activity is present, creates `p.v2c0` with an optional millisecond timestamp, `entity_uri`, optional `context_uri`, and `is_playing`.
+- The timestamp conversion uses protobuf seconds multiplied by 1,000 plus nanoseconds divided by 1,000,000; if `hasTimestamp` is false, the output timestamp is null.
+- The context URI is conditionally supplied when the corresponding protobuf presence bit indicates it exists.
+- `p.v2c0` stores the string URI fields and play-state boolean, while `p.w2c0` combines this optional activity data with the user identifier.
+
+**Interpretation:** `entity_uri` is the specific metadata field to test for the exact `spotify:track:` identity, but not every entity is guaranteed to be a song. Treat playback `is_playing` and the timestamp separately. The static APK does not prove any third-party app has permission to subscribe to, authenticate against, or continuously receive this private listening-activity feed. Keep the existing Spicetify/desktop host and thin Android remote functional until such integration is validated by supported means.
+
+Next research milestone: determine whether an approved or user-consented integration path delivers these already-understood fields in practice. If an adapter becomes justified, map the observed fields into Track Mirror's portable Rust `MirrorEvent` without copying any Spotify implementation source.
