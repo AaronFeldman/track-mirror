@@ -68,8 +68,8 @@ jobs:
 
           width = height = 64
           rgba = bytes([80, 80, 80, 255])
-          raw = (b"\\x00" + rgba * width) * height
-          png = (b"\\x89PNG\\r\\n\\x1a\\n"
+          raw = (bytes([0]) + rgba * width) * height
+          png = (bytes([137, 80, 78, 71, 13, 10, 26, 10])
                  + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
                  + chunk(b"IDAT", zlib.compress(raw))
                  + chunk(b"IEND", b""))
