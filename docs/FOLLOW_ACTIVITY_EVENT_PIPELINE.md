@@ -14,7 +14,7 @@ Spotify's controls may hide or revoke that visibility, including private session
 | --- | --- | --- |
 | 1. Use a permitted, visible activity source | The existing non-OCR Spicetify DOM URI probe remains the canonical source. The already-installed remote bridge publishes the **selected** friend's exact, visibly displayed track URI. No additional Spotify API or OAuth request. | No mobile source extraction or live friend-API subscription is claimed. |
 | 2. Make source metadata portable | `track_mirror_core::source::normalize_visible_activity` converts a source observation to the **existing** `MirrorEvent`; no new cross-platform protocol. Reject malformed IDs, ignore episodes, do not fabricate a pause/position. | Only the source-observer's displayed-listening state is known; UI activity may be delayed. |
-| 3. Serve Android/phone clients through desktop host | The desktop remote server accepts `POST /api/event` from localhost Spotify bridge only, exposes `GET /api/event?after=N` to a paired remote client, and clears events when stopping/changing the selected friend. Observations expire after 90 seconds. | A metadata transport endpoint is not yet a full native Android receiver/player integration. |
+| 3. Serve Android/phone clients through desktop host | The desktop remote server accepts `POST /api/event` from localhost Spotify bridge only, exposes `GET /api/event?after=N` to a paired remote client, and clears events when stopping/changing the selected friend. Observations expire after 90 seconds. The existing phone web remote now shows the selected friend's latest fresh track URI as a read-only diagnostic, without triggering Spotify playback. | A metadata transport endpoint is not yet a full native Android receiver/player integration. |
 | 4. Test and retain all work | Rust engine unit tests, Python HTTP tests, JS simulated Spicetify tests run in GitHub Actions. Source and state records are committed; third-party decompiled classes remain **only in private encrypted research archives**, with matching fingerprints and decryption key. | Real Spotify and Android device validation still must occur with the user's devices. |
 
 ## Transport contract (version 1)
@@ -68,12 +68,13 @@ The desktop's extension-to-server channel is loopback-only; pairing is required 
 
 ## Test and deployment
 
-Cloud unit and HTTP tests:
+Cloud unit, HTTP, mocked client, and remote HTML syntax tests:
 
 ```sh
 cargo test -p track-mirror-core
 python3 -m unittest discover -s tests -p 'test_remote_event_pipeline.py' -v
 node tests/test_spicetify_visible_event_bridge.cjs
+# GitHub Actions also extracts the phone remote's inline script and checks it with Node.
 ```
 
 When the desktop is accessible again, install the changed Spicetify extension and server using the repo's existing installer and launcher workflow. Nothing in this research branch automatically updates or restarts a running Spotify process. Confirm locally that (a) a visible selected listener produces events, (b) hiding that listener removes their new events and old activity expires, (c) switching targets clears the cached old track, and (d) stop disables further events. Use a Tailscale-private host connection, not a public port-forward; protect the existing pairing token.
