@@ -1,8 +1,8 @@
 name: Spotify Android listening activity research (encrypted archive)
 
 on:
-  push:
-    branches: [research/android-presence-cloud-2026-11]
+  pull_request:
+    branches: [main]
     paths: [.github/workflows/android-presence-cloud.yml]
   workflow_dispatch:
 
