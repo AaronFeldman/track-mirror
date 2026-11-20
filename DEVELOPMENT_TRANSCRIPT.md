@@ -201,3 +201,11 @@ Repository record and implementation:
 - `docs/PRODUCT_REQUIREMENTS.md` makes self-dismissing quick controls a mandatory phone/tablet/desktop requirement.
 - `spicetify/track-mirror-playback.js` implements immediate changes plus automatic modal dismissal after friend selection or Mirroring ON/OFF.
 - The executable Spicetify proof of concept remains the most complete current implementation of the approved reference pattern and is the behavior to reproduce in the next-generation platform shells where possible.
+
+## 2026-11-19 — Recovered Spotify Android presence evidence
+
+**Reconstructed from archived October 28 analysis files and repository state; not a verbatim chat transcript.**
+
+The user asked to resume the paused Listening Activity APK investigation. The previous `ListeningActivityPresenceDaemon` class-name search found no exact class in the 99,161-class Android APK inventory, but archived analysis confirms that the code path was traced beyond that dead end. Obfuscated `p.n5c0.a(String)` creates a `SubscribePresenceRequest.PusherChannel`; `p.iz10.o` invokes `p.d4c0.f`, processes the returned `PresenceResponse` and maps individual `UserActivity` entries before flow emission. The `p.d4c0` interface also declares separate user-activity/feed/subscription methods. These are **static APK observations**, not proof of an accessible live public API.
+
+A static handoff and read-only next-target list were added to `docs/ANDROID_LISTENING_ACTIVITY_RESEARCH.md`. The archived original APK remains on the owner's Linux machine and was not available to execute fresh decompilation in this chat session. No app integration, credential acquisition, or live network test was performed. The existing Linux proof of concept and prioritized thin Android remote remain unchanged.
