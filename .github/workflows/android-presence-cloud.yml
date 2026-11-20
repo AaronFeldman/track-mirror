@@ -71,18 +71,18 @@ jobs:
         run: |
           set -euo pipefail
           cat > "$RUNNER_TEMP/research-public.pem" <<'PUBLICKEY'
------BEGIN PUBLIC KEY-----
-MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAyaAwVzi+2I7b56KOo7e9
-i8H1smaSnqhmUYYgOT7KBEDzcXKl+i8zlDGNef2BsGvKVsa8J2IErEBJj+tICOfJ
-giJbQdYwLe5ddqFA5NS8Kt63iiT6dL/GeRCn1eCeuRRnMdkzyZ/VJ8GkqQzahAs3
-rgNkNA7lrhDIXOU3p+YFunOykdwyFxO4UQbDPB5wmiiMTC2W//zQILqaaqfbKbsv
-el8BrSKpiRjWyYm+GXBo4CQjBEHVMZ4++iuubbzhzPjLxE85S2fIolUOryk03RKt
-ukNMnjyjBKjgnFd4xMv1X1Cz6m5s6Skq0ZZxRYJINe0BsLp4JLZRy5eR/Cgf1ola
-XXwogPSxeVS5IMbevfC2ji2p3ZfcgaIcQDpQGg4v9Q9OhWCQPzrqAzxibBTZCOQ8
-JE3neifAEho/T2wvt/pNTEAzlYdY9lG3Jyna+PAVsKDJDuzioGRmoo47ffBqJmBv
-ewC3f3vTSGZPhnUxfap7iQlqe3VGGottR2PVxB0yyg/XAgMBAAE=
------END PUBLIC KEY-----
-PUBLICKEY
+          -----BEGIN PUBLIC KEY-----
+          MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAyaAwVzi+2I7b56KOo7e9
+          i8H1smaSnqhmUYYgOT7KBEDzcXKl+i8zlDGNef2BsGvKVsa8J2IErEBJj+tICOfJ
+          giJbQdYwLe5ddqFA5NS8Kt63iiT6dL/GeRCn1eCeuRRnMdkzyZ/VJ8GkqQzahAs3
+          rgNkNA7lrhDIXOU3p+YFunOykdwyFxO4UQbDPB5wmiiMTC2W//zQILqaaqfbKbsv
+          el8BrSKpiRjWyYm+GXBo4CQjBEHVMZ4++iuubbzhzPjLxE85S2fIolUOryk03RKt
+          ukNMnjyjBKjgnFd4xMv1X1Cz6m5s6Skq0ZZxRYJINe0BsLp4JLZRy5eR/Cgf1ola
+          XXwogPSxeVS5IMbevfC2ji2p3ZfcgaIcQDpQGg4v9Q9OhWCQPzrqAzxibBTZCOQ8
+          JE3neifAEho/T2wvt/pNTEAzlYdY9lG3Jyna+PAVsKDJDuzioGRmoo47ffBqJmBv
+          ewC3f3vTSGZPhnUxfap7iQlqe3VGGottR2PVxB0yyg/XAgMBAAE=
+          -----END PUBLIC KEY-----
+          PUBLICKEY
           python - <<'PY'
           import os, json, base64, hashlib, pathlib
           from cryptography.hazmat.primitives import hashes, serialization
