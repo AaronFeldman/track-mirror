@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   inspect:
@@ -26,6 +26,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/apk"
+          echo "Cloud probe on $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$RUNNER_TEMP/cloud-status.txt"
+          echo "Expected SHA256: c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928" >> "$RUNNER_TEMP/cloud-status.txt"
           EXPECTED="c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928"
           for ABI in arm64-v8a armeabi-v7a; do
             echo "Checking public XAPK variant: $ABI"
@@ -42,13 +44,16 @@ jobs:
             unzip -p "$RUNNER_TEMP/apk/spotify.xapk" "$MEMBER" > "$RUNNER_TEMP/apk/base.apk"
             ACTUAL="$(sha256sum "$RUNNER_TEMP/apk/base.apk" | cut -d' ' -f1)"
             echo "Extracted $MEMBER, SHA256=$ACTUAL"
+            echo "$ABI: $MEMBER $ACTUAL" >> "$RUNNER_TEMP/cloud-status.txt"
             if [[ "$ACTUAL" == "$EXPECTED" ]]; then
               echo "Exact fingerprint match for $ABI."
+              echo "MATCH: $ABI" >> "$RUNNER_TEMP/cloud-status.txt"
               echo "APK_FILE=$RUNNER_TEMP/apk/base.apk" >> "$GITHUB_ENV"
               echo "APK_VARIANT=$ABI" >> "$GITHUB_ENV"
               exit 0
             fi
           done
+          echo "No variant matched the archived fingerprint; decompilation not attempted." >> "$RUNNER_TEMP/cloud-status.txt"
           echo "::error::No downloaded variant matched the archived original fingerprint. No unrelated APK was decompiled."
           exit 1
       - name: Install standalone JADX CLI
@@ -67,15 +72,18 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/inspect-spotify-presence.sh "$APK_FILE"
+          echo "Decompilation completed" >> "$RUNNER_TEMP/cloud-status.txt"
           echo '--- Sanitized source symbol summary ---'
           ROOT="$HOME/track-mirror-research/spotify-apk/9.1.92.3058_147346334/presence-probe"
           for CLASS in p.n5c0 p.d4c0 p.iz10 p.w2c0; do
             FILE="$ROOT/$CLASS.java"
             if [[ -f "$FILE" ]]; then
               echo "[$CLASS] file ready; bytes=$(wc -c < "$FILE")"
+              echo "CLASS $CLASS: decompiled; bytes=$(wc -c < "$FILE")" >> "$RUNNER_TEMP/cloud-status.txt"
               grep -E '^ *(public|private|protected|static|final|@).*(UserActivity|PresenceResponse|SubscribePresenceRequest|String|Spotify)' "$FILE" | head -n 16 || true
             else
               echo "[$CLASS] file missing"
+              echo "CLASS $CLASS: missing" >> "$RUNNER_TEMP/cloud-status.txt"
             fi
           done
           echo '--- Static identifiers (not values) ---'
@@ -86,3 +94,30 @@ jobs:
         shell: bash
         run: |
           echo "Cloud research job finished. See step logs for APK SHA verification and four-class decompilation status." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit nonproprietary run status on research branch
+        if: always()
+        shell: bash
+        run: |
+          set -eu
+          TARGET="docs/CLOUD_ANDROID_PRESENCE_RESULT.md"
+          {
+            echo "# Cloud Android Listening Activity probe result"
+            echo
+            echo "This is an ephemeral GitHub Actions investigation, not a local desktop test."
+            echo
+            if [[ -f "$RUNNER_TEMP/cloud-status.txt" ]]; then
+              cat "$RUNNER_TEMP/cloud-status.txt"
+            else
+              echo "Cloud runner stopped before APK retrieval, or the job did not start."
+            fi
+            echo
+            echo "Only metadata and SHA fingerprints are saved here. No APK or decompiled Spotify source is checked in."
+          } > "$TARGET"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$TARGET"
+          if ! git diff --cached --quiet; then
+            git commit -m 'Record Android presence cloud probe status'
+            git push origin HEAD:research/android-presence-cloud-2026-11
+          fi
