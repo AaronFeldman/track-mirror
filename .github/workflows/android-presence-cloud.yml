@@ -35,6 +35,7 @@ jobs:
           echo "Cloud probe on $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$RUNNER_TEMP/cloud-status.txt"
           echo "Expected SHA256: c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928" >> "$RUNNER_TEMP/cloud-status.txt"
           EXPECTED="c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928"
+          PUBLIC_VARIANT="bf9ae85fee0e7b4a3ba07e444288dc88003381f865dff5475dad266835858dba"
           for ABI in arm64-v8a armeabi-v7a; do
             echo "Checking public XAPK variant: $ABI"
             LINK="https://d.apkpure.net/b/XAPK/com.spotify.music?nc=$ABI&sv=24&versionCode=147346334"
@@ -56,6 +57,14 @@ jobs:
               echo "MATCH: $ABI" >> "$RUNNER_TEMP/cloud-status.txt"
               echo "APK_FILE=$RUNNER_TEMP/apk/base.apk" >> "$GITHUB_ENV"
               echo "APK_VARIANT=$ABI" >> "$GITHUB_ENV"
+              echo "APK_PROVENANCE=exact_archived" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            if [[ "$ACTUAL" == "$PUBLIC_VARIANT" ]]; then
+              echo "::warning::Same public Spotify versionCode but DIFFERENT APK fingerprint; treating as separate research sample."
+              echo "PUBLIC_VARIANT_DIFFERENT_FROM_ARCHIVED: $ABI" >> "$RUNNER_TEMP/cloud-status.txt"
+              echo "APK_FILE=$RUNNER_TEMP/apk/base.apk" >> "$GITHUB_ENV"
+              echo "APK_PROVENANCE=public_variant_different_sha" >> "$GITHUB_ENV"
               exit 0
             fi
           done
@@ -77,7 +86,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/inspect-spotify-presence.sh "$APK_FILE"
+          if [[ "${APK_PROVENANCE:-}" == "exact_archived" ]]; then
+            bash scripts/inspect-spotify-presence.sh "$APK_FILE"
+          else
+            ROOT="$HOME/track-mirror-research/spotify-apk/9.1.92.3058_147346334/presence-probe"
+            mkdir -p "$ROOT"
+            ERRORS=0
+            for CLASS in p.n5c0 p.d4c0 p.iz10 p.w2c0; do
+              if ! jadx --no-res --show-bad-code -j 2 --single-class "$CLASS" --single-class-output "$ROOT/$CLASS.java" "$APK_FILE" > "$ROOT/$CLASS.log" 2>&1; then
+                echo "$CLASS failed: $(tail -n 3 "$ROOT/$CLASS.log")"
+                ERRORS=$((ERRORS+1))
+              fi
+            done
+            echo "Unmatched source fingerprint. Classes failing: $ERRORS" >> "$RUNNER_TEMP/cloud-status.txt"
+          fi
           echo "Decompilation completed" >> "$RUNNER_TEMP/cloud-status.txt"
           echo '--- Sanitized source symbol summary ---'
           ROOT="$HOME/track-mirror-research/spotify-apk/9.1.92.3058_147346334/presence-probe"
@@ -125,5 +147,7 @@ jobs:
           git add "$TARGET"
           if ! git diff --cached --quiet; then
             git commit -m 'Record Android presence cloud probe status'
+            git fetch origin research/android-presence-cloud-2026-11
+            git rebase FETCH_HEAD
             git push origin HEAD:research/android-presence-cloud-2026-11
           fi
