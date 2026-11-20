@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import ipaddress
+import re
 import json
 import os
 import secrets
@@ -22,6 +23,8 @@ from urllib.parse import parse_qs, urlsplit
 
 APP_NAME = "track-mirror"
 DEFAULT_PORT = 8765
+EVENT_TTL_MS = 90_000
+TRACK_URI_PATTERN = re.compile(r"spotify:track:[A-Za-z0-9]{22}\Z")
 SPOTIFY_ORIGINS = {
     "https://xpui.app.spotify.com",
     "https://open.spotify.com",
@@ -47,6 +50,9 @@ STATE = {
     "updated_at": None,
     "command_id": 0,
     "command": None,
+    "event_sequence": 0,
+    "event": None,
+    "event_updated_at": None,
 }
 
 
@@ -72,6 +78,53 @@ def client_is_loopback(address: str) -> bool:
 
 def now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def normalize_event(payload: dict) -> dict:
+    """Validate only the minimal version-1 metadata required for a follower.
+
+    The desktop adapter sees an existing, user-visible Following row. This
+    endpoint neither queries a Spotify API nor infers playback position.
+    """
+    if type(payload.get("version")) is not int or payload["version"] != 1:
+        raise ValueError("unsupported event version")
+    listener = payload.get("source_listener_id")
+    if not isinstance(listener, str) or not listener.strip():
+        raise ValueError("source_listener_id is required")
+    listener = " ".join(listener.split())
+    if len(listener) > 128:
+        raise ValueError("source_listener_id is too long")
+    uri = payload.get("track_uri")
+    if not isinstance(uri, str) or not TRACK_URI_PATTERN.fullmatch(uri):
+        raise ValueError("track_uri must be an exact spotify:track URI")
+    if payload.get("is_playing") is not True:
+        raise ValueError("only displayed listening events are supported; pauses cannot be inferred")
+    observed = payload.get("observed_at")
+    if not isinstance(observed, str) or not observed.strip() or len(observed) > 64:
+        raise ValueError("observed_at is required")
+    provenance = payload.get("provenance")
+    if provenance != "spotify-client-visible-following":
+        raise ValueError("event provenance is not an allowed visible activity source")
+    return {
+        "version": 1,
+        "source_listener_id": listener,
+        "track_uri": uri,
+        "is_playing": True,
+        "observed_at": observed,
+        "position_ms": None,
+        "track_title": None,
+        "artists": [],
+        "album": None,
+        "provenance": provenance,
+        "confidence": "exact-track-uri-visible-activity",
+    }
+
+
+def clear_latest_event() -> None:
+    """Call with LOCK held. Clear old activity when selection or arming changes."""
+    STATE["event_sequence"] = int(STATE["event_sequence"]) + 1
+    STATE["event"] = None
+    STATE["event_updated_at"] = None
 
 
 class TrackMirrorHandler(BaseHTTPRequestHandler):
@@ -189,7 +242,28 @@ class TrackMirrorHandler(BaseHTTPRequestHandler):
             with LOCK:
                 payload = dict(STATE)
                 payload.pop("command", None)
+                payload.pop("event", None)
             self._json(HTTPStatus.OK, payload)
+            return
+
+        if parsed.path == "/api/event":
+            if not self._require_auth(query):
+                return
+            try:
+                after = int((query.get("after") or ["0"])[0])
+            except ValueError:
+                after = 0
+            with LOCK:
+                seq = int(STATE["event_sequence"])
+                age = now_ms() - int(STATE["event_updated_at"] or 0)
+                current = STATE["event"]
+                event = (
+                    dict(current)
+                    if (STATE["enabled"] and current and seq > after
+                        and 0 <= age < EVENT_TTL_MS)
+                    else None
+                )
+            self._json(HTTPStatus.OK, {"sequence": seq, "event": event})
             return
 
         if parsed.path == "/api/command":
@@ -217,6 +291,33 @@ class TrackMirrorHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
 
+        if parsed.path == "/api/event":
+            if not self._require_spotify_loopback():
+                return
+            try:
+                event = normalize_event(payload)
+            except ValueError as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+            with LOCK:
+                not_following = (
+                    not STATE["enabled"]
+                    or event["source_listener_id"].casefold() != str(STATE["selected_friend"] or "").casefold()
+                )
+                if not_following:
+                    seq = None
+                else:
+                    STATE["event_sequence"] = int(STATE["event_sequence"]) + 1
+                    seq = int(STATE["event_sequence"])
+                    event["sequence"] = seq
+                    STATE["event"] = event
+                    STATE["event_updated_at"] = now_ms()
+            if seq is None:
+                self._json(HTTPStatus.CONFLICT, {"error": "listener is not currently followed"})
+                return
+            self._json(HTTPStatus.OK, {"ok": True, "sequence": seq})
+            return
+
         if parsed.path == "/api/state":
             if not self._require_spotify_loopback():
                 return
@@ -241,8 +342,12 @@ class TrackMirrorHandler(BaseHTTPRequestHandler):
                     normalized_friends.append(name)
 
             with LOCK:
+                new_selected = selected.strip() if isinstance(selected, str) and selected.strip() else None
+                if not enabled or not STATE["enabled"] or new_selected != STATE["selected_friend"]:
+                    if STATE["event"] is not None:
+                        clear_latest_event()
                 STATE["friends"] = normalized_friends
-                STATE["selected_friend"] = selected.strip() if isinstance(selected, str) and selected.strip() else None
+                STATE["selected_friend"] = new_selected
                 STATE["enabled"] = enabled
                 STATE["updated_at"] = now_ms()
             self._json(HTTPStatus.OK, {"ok": True})
@@ -259,6 +364,7 @@ class TrackMirrorHandler(BaseHTTPRequestHandler):
             with LOCK:
                 STATE["command_id"] = int(STATE["command_id"]) + 1
                 STATE["command"] = {"type": "follow", "friend": friend}
+                clear_latest_event()
                 STATE["selected_friend"] = friend
                 STATE["enabled"] = True
                 STATE["updated_at"] = now_ms()
@@ -272,6 +378,7 @@ class TrackMirrorHandler(BaseHTTPRequestHandler):
             with LOCK:
                 STATE["command_id"] = int(STATE["command_id"]) + 1
                 STATE["command"] = {"type": "stop"}
+                clear_latest_event()
                 STATE["enabled"] = False
                 STATE["updated_at"] = now_ms()
                 command_id = STATE["command_id"]

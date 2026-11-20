@@ -27,6 +27,7 @@
     .save { width: auto; background: #1ed760; color: #071b0d; border-radius: 10px; }
     .hidden { display: none; }
     .error { color: #ff9b9b; margin-top: 8px; font-size: 13px; }
+    .track-uri { margin-top: 8px; overflow-wrap: anywhere; font-family: ui-monospace, monospace; font-size: 12px; }
   </style>
 </head>
 <body>
@@ -56,6 +57,12 @@
   </section>
 
   <section class="card">
+    <strong>Latest visible track</strong>
+    <div id="source-activity" class="muted">Waiting for fresh activity from the selected listener…</div>
+    <div id="source-track-uri" class="track-uri"></div>
+  </section>
+
+  <section class="card">
     <strong>Follow</strong>
     <div id="friends" class="friends"><div class="muted">Waiting for desktop friend list…</div></div>
   </section>
@@ -78,6 +85,8 @@
   const glyphEl = document.getElementById("glyph");
   const friendsEl = document.getElementById("friends");
   const stopButton = document.getElementById("stop");
+  const activityEl = document.getElementById("source-activity");
+  const trackUriEl = document.getElementById("source-track-uri");
 
   function token() { return localStorage.getItem(TOKEN_KEY) || ""; }
 
@@ -105,7 +114,11 @@
     const selected = data.selected_friend || null;
     glyphEl.textContent = enabled ? "⇄" : "▷";
     stateEl.textContent = enabled && selected ? `Following ${selected}` : "Following is off";
-    detailEl.textContent = data.updated_at ? "Desktop connected" : "Waiting for Spotify desktop";
+    const recentlyConnected = data.updated_at
+      && Date.now() - Number(data.updated_at) < 10000;
+    detailEl.textContent = recentlyConnected
+      ? "Desktop connected"
+      : "Waiting for a recent Spotify desktop update";
     stopButton.disabled = !enabled;
 
     const friends = Array.isArray(data.friends) ? data.friends : [];
@@ -140,10 +153,28 @@
 
   async function refresh() {
     try {
-      render(await api("/api/state"));
+      const state = await api("/api/state");
+      render(state);
+      if (!state.enabled) {
+        activityEl.textContent = "Following is off";
+        trackUriEl.textContent = "";
+        return;
+      }
+      // Token-authenticated metadata only; does not play or control Spotify.
+      const latest = await api("/api/event?after=0");
+      const event = latest?.event;
+      if (event?.source_listener_id && event?.track_uri) {
+        activityEl.textContent = `Visible from ${event.source_listener_id}`;
+        trackUriEl.textContent = event.track_uri;
+      } else {
+        activityEl.textContent = "Waiting for fresh activity from the selected listener…";
+        trackUriEl.textContent = "";
+      }
     } catch (error) {
       if (!token()) pairing.classList.remove("hidden");
       detailEl.textContent = error.message;
+      activityEl.textContent = "Activity feed unavailable";
+      trackUriEl.textContent = "";
     }
   }
 
