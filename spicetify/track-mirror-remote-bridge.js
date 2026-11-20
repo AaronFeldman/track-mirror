@@ -6,6 +6,9 @@
 
   let lastCommandId = 0;
   let lastStateSignature = "";
+  let lastEventSignature = "";
+  let lastSessionKey = "";
+  let publishingActivity = false;
   let started = false;
 
   function normalize(value) {
@@ -56,6 +59,62 @@
     }
   }
 
+  // Read only the already-visible Following activity rows. No private
+  // Spotify endpoint, credential, or audio stream is accessed.
+  async function publishVisibleActivity() {
+    const playback = window.TrackMirrorPlayback;
+    const selected = normalize(playback?.selectedFriend);
+    if (!playback?.enabled || !selected) {
+      lastSessionKey = "";
+      lastEventSignature = "";
+      return;
+    }
+
+    // A newly selected/armed listener gets a fresh source-event baseline.
+    const sessionKey = selected.toLowerCase();
+    if (lastSessionKey !== sessionKey) {
+      lastSessionKey = sessionKey;
+      lastEventSignature = "";
+    }
+
+    const results = window.TrackMirrorDomUriProbe?.lastResults || [];
+    const activity = results.find(
+      (item) => normalize(item?.friend).toLowerCase() === sessionKey,
+    );
+    const uri = String(activity?.uri || "");
+    if (!/^spotify:track:[A-Za-z0-9]{22}$/.test(uri) || publishingActivity) return;
+
+    const signature = sessionKey + "|" + uri;
+    if (signature === lastEventSignature) return;
+
+    // The visible Listening Activity row is evidence of displayed listening,
+    // not proof of a continuously running remote player. No pause/seek
+    // transitions are fabricated from a missing or stale UI row.
+    const event = {
+      version: 1,
+      source_listener_id: selected,
+      track_uri: uri,
+      is_playing: true,
+      observed_at: new Date().toISOString(),
+      provenance: "spotify-client-visible-following",
+    };
+    publishingActivity = true;
+    try {
+      const response = await fetch(`${BASE_URL}/api/event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(event),
+        cache: "no-store",
+      });
+      if (response.ok) lastEventSignature = signature;
+    } catch (_) {
+      // The source-to-phone event path is optional. Local playback mirroring
+      // must continue if the desktop control server is unavailable.
+    } finally {
+      publishingActivity = false;
+    }
+  }
+
   async function pollCommand() {
     const playback = window.TrackMirrorPlayback;
     if (!playback) return;
@@ -96,10 +155,16 @@
     }
 
     started = true;
-    window.addEventListener("track-mirror:dom-uri-results", () => publishState());
-    publishState(true);
+    window.addEventListener("track-mirror:dom-uri-results", () => {
+      publishState();
+      publishVisibleActivity();
+    });
+    publishState(true).then(() => publishVisibleActivity());
     setInterval(pollCommand, POLL_MS);
-    setInterval(() => publishState(), STATE_MS);
+    setInterval(() => {
+      publishState();
+      publishVisibleActivity();
+    }, STATE_MS);
     console.log(PREFIX, "loaded", { baseUrl: BASE_URL });
   }
 
