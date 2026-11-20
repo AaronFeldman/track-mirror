@@ -50,3 +50,13 @@ bash scripts/inspect-spotify-presence.sh
 ```
 
 The script verifies the SHA-256 fingerprint and then decompiles **only** `p.n5c0`, `p.d4c0`, `p.iz10`, and `p.w2c0` using JADX's `--single-class` option. Output remains at `~/track-mirror-research/spotify-apk/9.1.92.3058_147346334/presence-probe/`, outside the repository. The summary is `summary.txt`; class-level outputs and logs stay local. No network calls, authentication, APK changes, or Spotify playback actions are performed. The script's shell syntax and flow were verified with a fixture, **not** against the unavailable original APK.
+
+## Cloud comparative test — 2026-11-19 (local) / 2026-11-20 UTC
+
+The original APK was not available to the cloud runner. A GitHub Actions research job on branch `research/android-presence-cloud-2026-11` downloaded two publicly archived XAPK variants for Spotify `9.1.92.3058` / versionCode `147346334`, each extracting `com.spotify.music.apk` with SHA-256 `bf9ae85fee0e7b4a3ba07e444288dc88003381f865dff5475dad266835858dba`. This is **not identical** to the original archived `base.apk` SHA-256 `c26e20a8ce9db36fd0b6021542c75abcaf4e923557b8a21058b502e295d62928`. The first cloud job correctly refused to decompile a mismatch. A second job proceeded, explicitly labeling it a *different research sample*.
+
+JADX CLI 1.5.6 then generated single-class outputs for `p.n5c0` (1,314 bytes), `p.d4c0` (8,658 bytes), `p.iz10` (134,932 bytes), and `p.w2c0` (720 bytes). Two CLI invocations reported errors (`p.iz10`: 11; `p.w2c0`: 1), though source files were produced. The job's **inspection step succeeded**, while the overall workflow was marked failed after two parallel jobs conflicted trying to commit a status file. One status report is available on the research branch at `docs/CLOUD_ANDROID_PRESENCE_RESULT.md`.
+
+The public variant also exposes `p.n5c0.a(String) -> SubscribePresenceRequest` and `p.n5c0.b(UserActivity) -> p.w2c0`, supporting continuity of the observed source pathway across these two APK samples. Do not conclude that APKs are otherwise identical or that the private Spotify service is supported for external app use. No live runtime test, user account access, Tailscale access, intercepted traffic, or Spotify audio was involved.
+
+Workflow under review: [research PR #3](https://github.com/AaronFeldman/track-mirror/pull/3) (draft; not merged). GitHub cloud execution was sufficient for this static comparative test; the desktop and KDE Connect/Tailscale configuration remained untouched.
